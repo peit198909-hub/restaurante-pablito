@@ -1,0 +1,265 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,500;0,700;1,400&display=swap');
+@import 'bootstrap/dist/css/bootstrap.min.css';
+
+:root {
+  --primary-orange: #d85d30;
+  --primary-orange-hover: #b84c22;
+  --espresso: #2a221f;
+  --espresso-hover: #1c1614;
+  --mustard: #d99f30;
+  --sand-bg: #f5eae0;
+  --sand-card: #ffffff;
+  --sand-input: #fdfaf7;
+  --text-dark: #2a221f;
+  --text-muted: #6e605a;
+  --border-glass: rgba(216, 93, 48, 0.1);
+  --border-glass-focus: rgba(216, 93, 48, 0.45);
+  --orange-glow: rgba(216, 93, 48, 0.15);
+}
+
+body {
+  margin: 0;
+  font-family: 'Outfit', sans-serif;
+  background-color: var(--sand-bg);
+  color: var(--text-dark);
+  background-image: 
+    radial-gradient(at 10% 20%, rgba(216, 93, 48, 0.04) 0px, transparent 50%),
+    radial-gradient(at 90% 80%, rgba(217, 159, 48, 0.03) 0px, transparent 50%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Tipografia */
+h1, h2, h3, .font-serif {
+  font-family: 'Playfair Display', serif;
+  color: var(--espresso);
+}
+
+.text-gold, .text-oak, .text-sage, .text-orange {
+  color: var(--primary-orange) !important;
+}
+
+/* Contenedor Principal */
+.main-content {
+  flex: 1;
+  padding: 3rem 1rem;
+}
+
+/* Tarjetas y Formularios Calidos Neutros */
+.glass-card {
+  background: var(--sand-card);
+  border: 1px solid var(--border-glass);
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(42, 34, 31, 0.03), 0 1px 8px rgba(42, 34, 31, 0.01);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+  border-color: var(--border-glass-focus);
+  box-shadow: 0 15px 35px rgba(216, 93, 48, 0.06);
+}
+
+/* Inputs Modernos y Calidos */
+.glass-input {
+  background-color: var(--sand-input) !important;
+  border: 1px solid var(--border-glass) !important;
+  color: var(--text-dark) !important;
+  border-radius: 8px !important;
+  padding: 0.75rem 1rem !important;
+  transition: all 0.25s ease !important;
+}
+
+.glass-input:focus {
+  background-color: #ffffff !important;
+  border-color: var(--primary-orange) !important;
+  box-shadow: 0 0 0 0.25rem var(--orange-glow) !important;
+  outline: 0 !important;
+}
+
+.glass-input::placeholder {
+  color: rgba(110, 96, 90, 0.45) !important;
+}
+
+/* Botones en Naranja Quemado */
+.btn-gold {
+  background-color: var(--primary-orange) !important;
+  border: 1px solid var(--primary-orange) !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.5px;
+  padding: 0.75rem 1.5rem !important;
+  border-radius: 8px !important;
+  transition: all 0.25s ease !important;
+}
+
+.btn-gold:hover {
+  background-color: var(--primary-orange-hover) !important;
+  border-color: var(--primary-orange-hover) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(216, 93, 48, 0.25);
+}
+
+.btn-gold:active {
+  transform: translateY(0);
+}
+
+.btn-outline-gold {
+  background-color: transparent !important;
+  border: 1px solid var(--primary-orange) !important;
+  color: var(--primary-orange) !important;
+  font-weight: 500 !important;
+  padding: 0.75rem 1.5rem !important;
+  border-radius: 8px !important;
+  transition: all 0.25s ease !important;
+}
+
+.btn-outline-gold:hover {
+  background-color: var(--primary-orange) !important;
+  color: #ffffff !important;
+  transform: translateY(-2px);
+}
+
+/* Navegacion en Espresso Calido y Contraste */
+.navbar-custom {
+  background: var(--espresso);
+  border-bottom: 2px solid var(--mustard);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.navbar-brand-custom {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--sand-bg) !important;
+}
+
+.navbar-brand-custom span {
+  color: var(--mustard);
+}
+
+.nav-link-custom {
+  color: #f5ebe0 !important;
+  font-weight: 500;
+  padding: 0.5rem 1rem !important;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.nav-link-custom:hover, .nav-link-custom.active {
+  color: var(--mustard) !important;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* Badge en Mostaza */
+.badge.bg-warning {
+  background-color: var(--mustard) !important;
+  color: var(--espresso) !important;
+}
+
+/* Alertas flotantes en sintonia */
+.custom-alert-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1050;
+  max-width: 350px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.custom-alert {
+  background: #ffffff;
+  border: 1px solid var(--border-glass);
+  border-radius: 12px;
+  padding: 1rem;
+  color: var(--text-dark);
+  box-shadow: 0 10px 30px rgba(42, 34, 31, 0.06);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: slideInRight 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.custom-alert-success {
+  border-left: 4px solid #10b981;
+}
+
+.custom-alert-danger {
+  border-left: 4px solid #ef4444;
+}
+
+.custom-alert-info {
+  border-left: 4px solid #3b82f6;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Efectos de Carga y Microanimaciones */
+.fade-in-up {
+  animation: fadeInUp 0.5s ease-out forwards;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.nav-tab-custom {
+  cursor: pointer;
+}
+
+/* Hero Section */
+.hero-section {
+  padding: 4rem 0 2rem;
+  text-align: center;
+}
+
+.hero-title {
+  font-size: 3.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: var(--espresso);
+}
+
+.hero-subtitle {
+  font-size: 1.25rem;
+  color: var(--text-muted);
+  max-width: 600px;
+  margin: 0 auto 2rem;
+}
+
+.text-muted {
+  color: var(--text-muted) !important;
+}
+
+.text-light {
+  color: var(--text-dark) !important;
+}
+
+/* Estilo para los inputs deshabilitados */
+.glass-input:disabled {
+  background-color: #f1ede9 !important;
+  color: #aba09b !important;
+}
