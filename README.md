@@ -1,36 +1,32 @@
-# Restaurante Pablito - Frontend Web
+# Frontend de Restaurante Pablito - Paulina Iza
 
-Interfaz de usuario web responsiva para el Restaurante Pablito. Construida con React, Vite, Bootstrap, Lucide Icons y CSS Personalizado de alta estetica.
+Este es el frontend de React para el sistema del Restaurante Pablito. Es la interfaz grafica para que los clientes se registren, inicien sesion y gestionen su perfil de entrega, y para que los administradores den de alta a otros administradores.
 
-## Caracteristicas Visuales y Funcionales
+## Como hacer funcionar el frontend
 
-- **Diseño Premium**: Paleta gastronómica cálida, bordes suaves, efectos de vidrio (glassmorphism), y microanimaciones interactivas.
-- **Flujo Autoadaptable**: Barra de navegación y accesos que cambian según el estado de la sesión y el rol del usuario (cliente o administrador).
-- **Autenticacion Persistente**: Almacenamiento seguro en sesión local para mantener el inicio de sesión.
-- **Notificaciones Flotantes**: Sistema interactivo de alertas animadas para informar éxitos y errores en tiempo real.
-
-## Instalacion y Ejecucion
-
-1. Instalar las dependencias del frontend:
+1. Instala los paquetes y librerias necesarios con bun:
    ```bash
    bun install
    ```
 
-2. Crear y configurar las variables de entorno en un archivo `.env`:
-   ```env
-   VITE_API_URL=http://localhost:3000
+2. Configura tu archivo de variables de entorno:
+   ```bash
+   cp .env.example .env
    ```
+   (Abre el archivo .env y pon el URL de tu backend en VITE_API_URL. Por ejemplo: `VITE_API_URL=https://restaurante-pablito-api.vercel.app`).
 
-3. Correr el servidor de desarrollo de Vite:
+3. Lanza el servidor de Vite en desarrollo:
    ```bash
    bun run dev
    ```
-   La aplicacion estara abierta en: `http://localhost:5173`.
+   La aplicacion se ejecutara en la direccion local: http://localhost:5173.
 
-## Estructura de Vistas (SPA)
+---
 
-- **Inicio / Home**: Bienvenida personalizada a clientes o administradores.
-- **Iniciar Sesion**: Acceso con credenciales seguras.
-- **Registrarse**: Auto-registro público para clientes.
-- **Mi Perfil**: Visualización y edición de datos del usuario autenticado, además del cambio de contraseña.
-- **Crear Admin**: Panel administrativo exclusivo (solo accesible para administradores) para registrar otros administradores de forma segura.
+## Modulos y vistas principales de la web
+
+- **Inicio**: Muestra una bienvenida personalizada con tu nombre y apellido si estas logueado. Si eres invitado, te muestra botones rapidos para registrarte o iniciar sesion.
+- **Iniciar Sesion**: Pantalla para ingresar con tu correo y clave. Guarda la sesion en el navegador para que no tengas que loguearte cada vez.
+- **Registrarse**: Formulario publico para clientes nuevos, con ejemplos locales de Ecuador (nombres, telefonos de 10 digitos y calles conocidas).
+- **Mi Perfil**: Te permite cambiar tu nombre, apellido, telefono y direccion de entrega, y tambien actualizar tu clave verificando primero tu contraseña actual.
+- **Crear Admin**: Una pestaña oculta que solo aparece si tu cuenta tiene rol de administrador, para registrar de forma segura otros administradores del local.
