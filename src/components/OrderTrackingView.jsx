@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { apiFetch } from "../api/client";
+import { formatFecha } from "../utils/dateUtils";
 import { ArrowLeft, Clock, CheckCircle2, PackageCheck, Utensils, Truck, Home, AlertCircle, RefreshCw } from "lucide-react";
 
 export default function OrderTrackingView({ orderId, setView }) {
@@ -22,7 +23,40 @@ export default function OrderTrackingView({ orderId, setView }) {
     } else {
       setLoading(false);
     }
+
+    const handleSSEUpdate = (e) => {
+      const { pedido_id, estado, pedido } = e.detail || {};
+      if (Number(pedido_id) === Number(orderId)) {
+        // Actualizar el estado en vivo instantáneamente
+        setData((prev) => {
+          if (!prev || !prev.pedido) return prev;
+          return {
+            ...prev,
+            pedido: {
+              ...prev.pedido,
+              estado: estado || (pedido ? pedido.estado : prev.pedido.estado),
+            },
+          };
+        });
+        // Recargar silenciosamente la orden para sincronizar datos completos
+        recargarSilencioso();
+      }
+    };
+
+    window.addEventListener("order_status_update", handleSSEUpdate);
+    return () => {
+      window.removeEventListener("order_status_update", handleSSEUpdate);
+    };
   }, [orderId]);
+
+  const recargarSilencioso = async () => {
+    try {
+      const res = await apiFetch(`/api/pedidos/${orderId}`);
+      setData(res);
+    } catch (err) {
+      console.error("Error en recarga silenciosa de SSE:", err);
+    }
+  };
 
   const cargarDetalle = async () => {
     setLoading(true);
@@ -109,19 +143,19 @@ export default function OrderTrackingView({ orderId, setView }) {
                     return (
                       <div key={st.key} className="col-4 col-md-2">
                         <div
-                          className={`d-inline-flex p-3 rounded-circle mb-2 transition-all ${
+                          className={`d-inline-flex p-3 rounded-circle mb-2 transition-all shadow-sm ${
                             esActivo
-                              ? "bg-gold text-dark shadow-gold animate-pulse"
+                              ? "bg-gold text-white shadow-gold animate-pulse"
                               : esCompletado
-                              ? "bg-gold-subtle text-gold border border-gold"
-                              : "bg-dark border border-glass text-muted opacity-50"
+                              ? "bg-warning-subtle text-warning border border-warning"
+                              : "bg-light border border-glass text-muted"
                           }`}
                         >
                           <IconComponent size={24} />
                         </div>
                         <div
                           className={`small fw-bold ${
-                            esActivo ? "text-gold" : esCompletado ? "text-light" : "text-muted opacity-50"
+                            esActivo ? "text-gold" : esCompletado ? "text-dark" : "text-muted"
                           }`}
                         >
                           {st.label}
@@ -138,7 +172,7 @@ export default function OrderTrackingView({ orderId, setView }) {
           <div className="col-lg-6">
             <div className="glass-card p-4 h-100">
               <h3 className="h5 text-gold mb-3 border-bottom border-glass pb-2">Detalles del Pedido</h3>
-              <div className="text-light small mb-3">
+              <div className="text-dark small mb-3">
                 <p className="mb-1">
                   <strong>Cliente:</strong> {data.pedido.cliente_nombre} {data.pedido.cliente_apellido}
                 </p>
@@ -156,7 +190,7 @@ export default function OrderTrackingView({ orderId, setView }) {
                 </p>
                 <p className="mb-1">
                   <strong>Fecha de Registro:</strong>{" "}
-                  {new Date(data.pedido.creado_en).toLocaleString()}
+                  {formatFecha(data.pedido.creado_en)}
                 </p>
                 {data.pedido.notas && (
                   <p className="mb-1">
@@ -175,19 +209,19 @@ export default function OrderTrackingView({ orderId, setView }) {
                 {data.items?.map((item) => (
                   <div
                     key={item.id}
-                    className="p-2 border border-glass rounded bg-dark bg-opacity-50 d-flex justify-content-between align-items-center"
+                    className="p-3 border border-glass rounded bg-white shadow-sm d-flex justify-content-between align-items-center"
                   >
                     <div>
                       <span className="fw-bold text-gold me-2">{item.cantidad}x</span>
-                      <span className="text-light">{item.producto_nombre}</span>
+                      <span className="text-dark fw-bold">{item.producto_nombre}</span>
                       {item.notas && <div className="text-muted extra-small">"{item.notas}"</div>}
                     </div>
-                    <span className="text-gold fw-bold">${Number(item.subtotal).toFixed(2)}</span>
+                    <span className="text-gold fw-bold fs-6">${Number(item.subtotal).toFixed(2)}</span>
                   </div>
                 ))}
               </div>
 
-              <div className="border-top border-glass pt-3 text-light small">
+              <div className="border-top border-glass pt-3 text-dark small">
                 <div className="d-flex justify-content-between mb-1">
                   <span>Subtotal</span>
                   <span>${Number(data.pedido.subtotal).toFixed(2)}</span>

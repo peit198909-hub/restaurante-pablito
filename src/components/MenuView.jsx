@@ -74,12 +74,12 @@ export default function MenuView({ setView, addAlert }) {
         <form onSubmit={handleBuscar} className="row g-3 align-items-center mb-3">
           <div className="col-md-8 col-lg-9">
             <div className="input-group">
-              <span className="input-group-text bg-dark border-glass text-gold">
+              <span className="input-group-text glass-input border-end-0 text-gold">
                 <Search size={18} />
               </span>
               <input
                 type="text"
-                className="form-input"
+                className="form-control glass-input border-start-0"
                 placeholder="Buscar por plato, postre, bebida..."
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}

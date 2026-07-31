@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { User, Phone, MapPin, KeyRound, Save, Mail, Calendar } from "lucide-react";
+import { User, Phone, MapPin, KeyRound, Save, Mail, Calendar, Navigation } from "lucide-react";
+import { formatSoloFecha } from "../utils/dateUtils";
+import AddressMapPicker from "./AddressMapPicker";
 
 // Vista y formulario de edicion de perfil
-export default function ProfileView({ apiBaseUrl, token, addAlert }) {
+export default function ProfileView({ apiBaseUrl, token, addAlert, onUpdateUsuario }) {
   const [nombre, setNombre] = useState("");
   const [apellido, setApellido] = useState("");
   const [correo, setCorreo] = useState("");
@@ -18,6 +20,7 @@ export default function ProfileView({ apiBaseUrl, token, addAlert }) {
 
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const [showMapPicker, setShowMapPicker] = useState(false);
 
   // Obtener los datos del perfil al cargar el componente
   useEffect(() => {
@@ -101,6 +104,10 @@ export default function ProfileView({ apiBaseUrl, token, addAlert }) {
       }
 
       addAlert("¡Perfil actualizado con exito!", "success");
+
+      if (datos.usuario && onUpdateUsuario) {
+        onUpdateUsuario(datos.usuario);
+      }
       
       // Limpiar campos de contrasena
       setContrasenaActual("");
@@ -143,7 +150,7 @@ export default function ProfileView({ apiBaseUrl, token, addAlert }) {
             <form onSubmit={handleSubmit}>
               <div className="row">
                 <div className="col-md-6 mb-3">
-                  <label className="form-label text-light small fw-bold">Nombre</label>
+                  <label className="form-label text-gold small fw-bold">Nombre</label>
                   <div className="input-group">
                     <span className="input-group-text glass-input border-end-0">
                       <User size={18} className="text-gold" />
@@ -159,7 +166,7 @@ export default function ProfileView({ apiBaseUrl, token, addAlert }) {
                 </div>
 
                 <div className="col-md-6 mb-3">
-                  <label className="form-label text-light small fw-bold">Apellido</label>
+                  <label className="form-label text-gold small fw-bold">Apellido</label>
                   <div className="input-group">
                     <span className="input-group-text glass-input border-end-0">
                       <User size={18} className="text-gold" />
@@ -177,7 +184,7 @@ export default function ProfileView({ apiBaseUrl, token, addAlert }) {
 
               <div className="row">
                 <div className="col-md-6 mb-3">
-                  <label className="form-label text-light small fw-bold">Correo Electronico (No editable)</label>
+                  <label className="form-label text-gold small fw-bold">Correo Electronico (No editable)</label>
                   <div className="input-group">
                     <span className="input-group-text glass-input border-end-0 opacity-75">
                       <Mail size={18} className="text-gold" />
@@ -192,7 +199,7 @@ export default function ProfileView({ apiBaseUrl, token, addAlert }) {
                 </div>
 
                 <div className="col-md-6 mb-3">
-                  <label className="form-label text-light small fw-bold">Telefono</label>
+                  <label className="form-label text-gold small fw-bold">Telefono</label>
                   <div className="input-group">
                     <span className="input-group-text glass-input border-end-0">
                       <Phone size={18} className="text-gold" />
@@ -209,7 +216,16 @@ export default function ProfileView({ apiBaseUrl, token, addAlert }) {
               </div>
 
               <div className="mb-4">
-                <label className="form-label text-light small fw-bold">Direccion de Entrega</label>
+                <label className="form-label text-gold small fw-bold d-flex align-items-center justify-content-between">
+                  <span>Direccion de Entrega</span>
+                  <button
+                    type="button"
+                    className="btn btn-link text-gold p-0 text-decoration-none extra-small fw-bold d-flex align-items-center gap-1"
+                    onClick={() => setShowMapPicker(true)}
+                  >
+                    <Navigation size={12} /> Abrir Mapa GPS
+                  </button>
+                </label>
                 <div className="input-group">
                   <span className="input-group-text glass-input border-end-0">
                     <MapPin size={18} className="text-gold" />
@@ -221,6 +237,14 @@ export default function ProfileView({ apiBaseUrl, token, addAlert }) {
                     value={direccion}
                     onChange={(e) => setDireccion(e.target.value)}
                   />
+                  <button
+                    type="button"
+                    className="btn btn-outline-gold"
+                    onClick={() => setShowMapPicker(true)}
+                    title="Seleccionar ubicación en mapa"
+                  >
+                    <MapPin size={16} />
+                  </button>
                 </div>
               </div>
 
@@ -234,7 +258,7 @@ export default function ProfileView({ apiBaseUrl, token, addAlert }) {
                     onChange={(e) => setCambiandoContrasena(e.target.checked)}
                     style={{ margin: 0, padding: 0, width: "1.2em", height: "1.2em", cursor: "pointer" }}
                   />
-                  <label className="form-check-label text-light fw-semibold ms-2" htmlFor="chkChangePass" style={{ cursor: "pointer" }}>
+                  <label className="form-check-label text-gold fw-semibold ms-2" htmlFor="chkChangePass" style={{ cursor: "pointer" }}>
                     Deseo actualizar mi contrasena
                   </label>
                 </div>
@@ -242,7 +266,7 @@ export default function ProfileView({ apiBaseUrl, token, addAlert }) {
                 {cambiandoContrasena && (
                   <div className="row fade-in-up mt-3">
                     <div className="col-md-6 mb-2">
-                      <label className="form-label text-light small fw-bold">Contrasena Actual *</label>
+                      <label className="form-label text-gold small fw-bold">Contrasena Actual *</label>
                       <div className="input-group">
                         <span className="input-group-text glass-input border-end-0">
                           <KeyRound size={18} className="text-gold" />
@@ -259,7 +283,7 @@ export default function ProfileView({ apiBaseUrl, token, addAlert }) {
                     </div>
 
                     <div className="col-md-6 mb-2">
-                      <label className="form-label text-light small fw-bold">Nueva Contrasena * (min. 6)</label>
+                      <label className="form-label text-gold small fw-bold">Nueva Contrasena * (min. 6)</label>
                       <div className="input-group">
                         <span className="input-group-text glass-input border-end-0">
                           <KeyRound size={18} className="text-gold" />
@@ -281,7 +305,7 @@ export default function ProfileView({ apiBaseUrl, token, addAlert }) {
               <div className="d-flex align-items-center justify-content-between flex-wrap gap-3">
                 <div className="text-muted small d-flex align-items-center gap-1">
                   <Calendar size={14} />
-                  <span>Miembro desde: {creadoEn ? new Date(creadoEn).toLocaleDateString() : "N/D"}</span>
+                  <span>Miembro desde: {creadoEn ? formatSoloFecha(creadoEn) : "N/D"}</span>
                 </div>
                 
                 <button
@@ -303,6 +327,15 @@ export default function ProfileView({ apiBaseUrl, token, addAlert }) {
           </div>
         </div>
       </div>
+
+      <AddressMapPicker
+        isOpen={showMapPicker}
+        onClose={() => setShowMapPicker(false)}
+        initialAddress={direccion}
+        onConfirmAddress={(loc) => {
+          setDireccion(loc.direccion);
+        }}
+      />
     </div>
   );
 }

@@ -66,14 +66,20 @@ export default function RegisterForm({ apiBaseUrl, onLoginSuccess, addAlert, set
         <div className="col-md-8 col-lg-6">
           <div className="glass-card p-4 p-sm-5">
             <div className="text-center mb-4">
+              <img
+                src="/restaurante-pablito-si.png"
+                alt="Restaurante Pablito"
+                className="rounded-circle shadow border border-gold mb-3"
+                style={{ width: "75px", height: "75px", objectFit: "cover" }}
+              />
               <h2 className="text-gold display-6 mb-2">Crear Cuenta</h2>
-              <p className="text-muted">Unete al Restaurante Pablito para realizar tus pedidos</p>
+              <p className="text-muted">Únete al Restaurante Pablito para realizar tus pedidos</p>
             </div>
 
             <form onSubmit={handleSubmit}>
               <div className="row">
                 <div className="col-sm-6 mb-3">
-                  <label className="form-label text-light small fw-bold">Nombre *</label>
+                  <label className="form-label text-gold small fw-bold">Nombre *</label>
                   <div className="input-group">
                     <span className="input-group-text glass-input border-end-0">
                       <User size={18} className="text-gold" />
@@ -90,7 +96,7 @@ export default function RegisterForm({ apiBaseUrl, onLoginSuccess, addAlert, set
                 </div>
 
                 <div className="col-sm-6 mb-3">
-                  <label className="form-label text-light small fw-bold">Apellido *</label>
+                  <label className="form-label text-gold small fw-bold">Apellido *</label>
                   <div className="input-group">
                     <span className="input-group-text glass-input border-end-0">
                       <User size={18} className="text-gold" />
@@ -108,7 +114,7 @@ export default function RegisterForm({ apiBaseUrl, onLoginSuccess, addAlert, set
               </div>
 
               <div className="mb-3">
-                <label className="form-label text-light small fw-bold">Correo Electronico *</label>
+                <label className="form-label text-gold small fw-bold">Correo Electronico *</label>
                 <div className="input-group">
                   <span className="input-group-text glass-input border-end-0">
                     <Mail size={18} className="text-gold" />
@@ -125,7 +131,7 @@ export default function RegisterForm({ apiBaseUrl, onLoginSuccess, addAlert, set
               </div>
 
               <div className="mb-3">
-                <label className="form-label text-light small fw-bold">Contrasena * (min. 6 caracteres)</label>
+                <label className="form-label text-gold small fw-bold">Contrasena * (min. 6 caracteres)</label>
                 <div className="input-group">
                   <span className="input-group-text glass-input border-end-0">
                     <Lock size={18} className="text-gold" />
@@ -142,7 +148,7 @@ export default function RegisterForm({ apiBaseUrl, onLoginSuccess, addAlert, set
               </div>
 
               <div className="mb-3">
-                <label className="form-label text-light small fw-bold">Telefono (opcional)</label>
+                <label className="form-label text-gold small fw-bold">Telefono (opcional)</label>
                 <div className="input-group">
                   <span className="input-group-text glass-input border-end-0">
                     <Phone size={18} className="text-gold" />
@@ -158,7 +164,7 @@ export default function RegisterForm({ apiBaseUrl, onLoginSuccess, addAlert, set
               </div>
 
               <div className="mb-4">
-                <label className="form-label text-light small fw-bold">Direccion (opcional)</label>
+                <label className="form-label text-gold small fw-bold">Direccion (opcional)</label>
                 <div className="input-group">
                   <span className="input-group-text glass-input border-end-0">
                     <MapPin size={18} className="text-gold" />

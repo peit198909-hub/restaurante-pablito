@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { apiFetch } from "../api/client";
+import { formatFecha } from "../utils/dateUtils";
+import Pagination from "./Pagination";
 import { Package, Clock, Eye, ShoppingBag } from "lucide-react";
 
 export default function MyOrdersView({ setView, onSetCurrentOrderId }) {
@@ -7,16 +9,61 @@ export default function MyOrdersView({ setView, onSetCurrentOrderId }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    cargarPedidos();
-  }, []);
+  // Estados de paginación
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(5);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
-  const cargarPedidos = async () => {
+  useEffect(() => {
+    cargarPedidos(page, limit);
+
+    const handleSSEUpdate = (e) => {
+      const { pedido_id, estado, tipo } = e.detail || {};
+      
+      // Actualización en tiempo real instantánea del listado
+      setPedidos((prev) => {
+        const existe = prev.some((p) => Number(p.id) === Number(pedido_id));
+        if (existe) {
+          return prev.map((p) =>
+            Number(p.id) === Number(pedido_id) ? { ...p, estado: estado || p.estado } : p
+          );
+        }
+        return prev;
+      });
+
+      // Recarga silenciosa si se creó un nuevo pedido o para refrescar datos completos
+      if (tipo === "creado") {
+        recargarSilencioso();
+      }
+    };
+
+    window.addEventListener("order_status_update", handleSSEUpdate);
+    return () => {
+      window.removeEventListener("order_status_update", handleSSEUpdate);
+    };
+  }, [page, limit]);
+
+  const recargarSilencioso = async () => {
+    try {
+      const res = await apiFetch(`/api/pedidos/mis-pedidos?page=${page}&limit=${limit}`);
+      setPedidos(res.pedidos || []);
+      setTotal(res.total || 0);
+      setTotalPages(res.totalPages || 1);
+    } catch (err) {
+      console.error("Error en recarga silenciosa de mis pedidos:", err);
+    }
+  };
+
+  const cargarPedidos = async (targetPage = page, targetLimit = limit) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await apiFetch("/api/pedidos/mis-pedidos");
+      const res = await apiFetch(`/api/pedidos/mis-pedidos?page=${targetPage}&limit=${targetLimit}`);
       setPedidos(res.pedidos || []);
+      setTotal(res.total || 0);
+      setTotalPages(res.totalPages || 1);
+      setPage(res.page || 1);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -77,7 +124,8 @@ export default function MyOrdersView({ setView, onSetCurrentOrderId }) {
           </button>
         </div>
       ) : (
-        <div className="row g-3">
+        <>
+          <div className="row g-3">
           {pedidos.map((pedido) => (
             <div key={pedido.id} className="col-12 col-md-6 col-lg-4">
               <div className="glass-card p-4 h-100 d-flex flex-column justify-content-between border-glass">
@@ -89,10 +137,10 @@ export default function MyOrdersView({ setView, onSetCurrentOrderId }) {
 
                   <div className="text-muted small mb-2 d-flex align-items-center gap-1">
                     <Clock size={14} />
-                    {new Date(pedido.creado_en).toLocaleString()}
+                    {formatFecha(pedido.creado_en)}
                   </div>
 
-                  <div className="text-light small mb-3">
+                  <div className="text-dark small mb-3 fw-medium">
                     <div>
                       <strong>Dirección:</strong> {pedido.direccion_entrega}
                     </div>
@@ -123,7 +171,24 @@ export default function MyOrdersView({ setView, onSetCurrentOrderId }) {
             </div>
           ))}
         </div>
-      )}
+
+        <Pagination
+          page={page}
+          totalPages={totalPages}
+          total={total}
+          limit={limit}
+          onPageChange={(newPage) => {
+            setPage(newPage);
+            cargarPedidos(newPage, limit);
+          }}
+          onLimitChange={(newLimit) => {
+            setLimit(newLimit);
+            setPage(1);
+            cargarPedidos(1, newLimit);
+          }}
+        />
+      </>
+    )}
     </div>
   );
 }

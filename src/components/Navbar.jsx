@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { User, LogOut, ShieldAlert, UtensilsCrossed, Utensils, ShoppingCart, Package, Settings, ClipboardList } from "lucide-react";
+import { User, LogOut, ShieldAlert, UtensilsCrossed, Utensils, ShoppingCart, Package, Settings, ClipboardList, TrendingUp } from "lucide-react";
 import { useCart } from "../context/CartContext";
 
 export default function Navbar({ usuario, currentView, setView, onLogout }) {
@@ -22,8 +22,13 @@ export default function Navbar({ usuario, currentView, setView, onLogout }) {
             handleNavigation("inicio");
           }}
         >
-          <UtensilsCrossed size={24} />
-          <span>Restaurante Pablito</span>
+          <img
+            src="/restaurante-pablito-si.png"
+            alt="Restaurante Pablito Logo"
+            className="rounded-circle border border-gold shadow-sm"
+            style={{ width: "38px", height: "38px", objectFit: "cover" }}
+          />
+          <span className="fw-bold tracking-wide">Restaurante Pablito</span>
         </a>
         <button
           className="navbar-toggler"
@@ -140,6 +145,22 @@ export default function Navbar({ usuario, currentView, setView, onLogout }) {
                       >
                         <ClipboardList size={16} />
                         Gestión Pedidos
+                      </a>
+                    </li>
+
+                    <li className="nav-item">
+                      <a
+                        className={`nav-link nav-link-custom d-flex align-items-center gap-1 ${
+                          currentView === "admin-config" ? "active" : ""
+                        }`}
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleNavigation("admin-config");
+                        }}
+                      >
+                        <Settings size={16} />
+                        Config. Negocio
                       </a>
                     </li>
 

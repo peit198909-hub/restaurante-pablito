@@ -48,13 +48,19 @@ export default function LoginForm({ apiBaseUrl, onLoginSuccess, addAlert, setVie
         <div className="col-md-6 col-lg-5">
           <div className="glass-card p-4 p-sm-5">
             <div className="text-center mb-4">
-              <h2 className="text-gold display-6 mb-2">Iniciar Sesion</h2>
+              <img
+                src="/restaurante-pablito-si.png"
+                alt="Restaurante Pablito"
+                className="rounded-circle shadow border border-gold mb-3"
+                style={{ width: "75px", height: "75px", objectFit: "cover" }}
+              />
+              <h2 className="text-gold display-6 mb-2">Iniciar Sesión</h2>
               <p className="text-muted">Ingresa al Restaurante Pablito</p>
             </div>
             
             <form onSubmit={handleSubmit}>
               <div className="mb-4">
-                <label className="form-label text-light small fw-bold">Correo Electronico</label>
+                <label className="form-label text-gold small fw-bold">Correo Electronico</label>
                 <div className="input-group">
                   <span className="input-group-text glass-input border-end-0">
                     <Mail size={18} className="text-gold" />
@@ -71,7 +77,7 @@ export default function LoginForm({ apiBaseUrl, onLoginSuccess, addAlert, setVie
               </div>
 
               <div className="mb-4">
-                <label className="form-label text-light small fw-bold">Contrasena</label>
+                <label className="form-label text-gold small fw-bold">Contrasena</label>
                 <div className="input-group">
                   <span className="input-group-text glass-input border-end-0">
                     <Lock size={18} className="text-gold" />

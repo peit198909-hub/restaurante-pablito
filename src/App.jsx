@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { CartProvider } from "./context/CartContext";
 import Navbar from "./components/Navbar";
 import AlertContainer from "./components/Alert";
@@ -12,9 +12,23 @@ import MyOrdersView from "./components/MyOrdersView";
 import OrderTrackingView from "./components/OrderTrackingView";
 import AdminProductsView from "./components/admin/AdminProductsView";
 import AdminOrdersView from "./components/admin/AdminOrdersView";
-import { UtensilsCrossed, ShieldAlert, User, ShieldCheck, ShoppingBag, Package } from "lucide-react";
+import AdminDashboardView from "./components/admin/AdminDashboardView";
+import AdminConfigView from "./components/admin/AdminConfigView";
+import { useOrderSSE } from "./hooks/useOrderSSE";
+import { playNotificationSound } from "./utils/soundUtils";
+import { UtensilsCrossed, ShieldAlert, User, ShieldCheck, ShoppingBag, Package, TrendingUp } from "lucide-react";
 
 const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+
+const FORMATO_ESTADO = {
+  pendiente: "Pendiente",
+  confirmado: "Confirmado",
+  en_preparacion: "En Preparación",
+  listo: "Listo para Entrega",
+  en_camino: "En Camino",
+  entregado: "Entregado",
+  cancelado: "Cancelado",
+};
 
 function AppContent() {
   // Inicializar estado con datos guardados en localStorage para persistencia
@@ -24,12 +38,20 @@ function AppContent() {
     return savedUser ? JSON.parse(savedUser) : null;
   });
 
-  const [view, setView] = useState("inicio");
+  const [view, setViewState] = useState(() => {
+    return localStorage.getItem("currentView") || "inicio";
+  });
+
+  const setView = (newView) => {
+    setViewState(newView);
+    localStorage.setItem("currentView", newView);
+  };
+
   const [currentOrderId, setCurrentOrderId] = useState(null);
   const [alerts, setAlerts] = useState([]);
 
   // Función utilitaria para agregar alertas flotantes autodescartables
-  const addAlert = (message, type = "info") => {
+  const addAlert = useCallback((message, type = "info") => {
     const id = Date.now();
     setAlerts((prev) => [...prev, { id, message, type }]);
 
@@ -37,11 +59,33 @@ function AppContent() {
     setTimeout(() => {
       removeAlert(id);
     }, 5000);
-  };
+  }, []);
 
   const removeAlert = (id) => {
     setAlerts((prev) => prev.filter((a) => a.id !== id));
   };
+
+  // Manejador global de eventos SSE para mostrar notificaciones flotantes y reproducir sonido en tiempo real
+  const handleOrderSSEUpdate = useCallback((eventData) => {
+    const { tipo, pedido_id, estado } = eventData;
+    const nombreEstado = FORMATO_ESTADO[estado] || estado;
+
+    // Reproducir el tono suave y brillante de ElevenLabs
+    playNotificationSound();
+
+    if (usuario?.rol === "administrador") {
+      if (tipo === "creado") {
+        addAlert(`🔔 ¡Nuevo pedido #${pedido_id} recibido!`, "success");
+      } else {
+        addAlert(`🔔 Pedido #${pedido_id} actualizado a '${nombreEstado}'`, "info");
+      }
+    } else {
+      addAlert(`🔔 Tu pedido #${pedido_id} ahora está en estado: ${nombreEstado}`, "info");
+    }
+  }, [usuario, addAlert]);
+
+  // Activar la conexión SSE en tiempo real
+  useOrderSSE(token, handleOrderSSEUpdate);
 
   // Guardar sesión tras login/registro
   const handleLoginSuccess = (newToken, nuevoUsuario) => {
@@ -53,14 +97,21 @@ function AppContent() {
     setView("menu");
   };
 
+  // Actualizar datos del usuario autenticado en la sesión global
+  const handleUpdateUsuario = (usuarioActualizado) => {
+    setUsuario(usuarioActualizado);
+    localStorage.setItem("usuario", JSON.stringify(usuarioActualizado));
+  };
+
   // Limpiar sesión
   const handleLogout = () => {
     setToken("");
     setUsuario(null);
     localStorage.removeItem("token");
     localStorage.removeItem("usuario");
+    localStorage.removeItem("currentView");
+    setViewState("inicio");
     addAlert("Sesión cerrada con éxito", "info");
-    setView("inicio");
   };
 
   return (
@@ -78,33 +129,40 @@ function AppContent() {
 
       <main className="main-content d-flex align-items-center">
         {view === "inicio" && (
-          <div className="container text-center py-5 fade-in-up">
-            <div className="row justify-content-center">
-              <div className="col-lg-8">
-                <div className="glass-card p-5 mb-4">
-                  <div className="mb-4">
-                    <UtensilsCrossed size={64} className="text-gold" />
-                  </div>
+          usuario?.rol === "administrador" ? (
+            <AdminDashboardView setView={setView} addAlert={addAlert} />
+          ) : (
+            <div className="container text-center py-5 fade-in-up">
+              <div className="row justify-content-center">
+                <div className="col-lg-8">
+                  <div className="glass-card p-5 mb-4">
+                    <div className="mb-4">
+                      <img
+                        src="/restaurante-pablito-si.png"
+                        alt="Restaurante Pablito Logo"
+                        className="rounded-circle shadow-lg border border-gold"
+                        style={{ width: "110px", height: "110px", objectFit: "cover" }}
+                      />
+                    </div>
 
-                  {usuario ? (
-                    <div>
-                      <h1 className="hero-title text-gold mb-3">
-                        ¡Bienvenido/a, {usuario.nombre} {usuario.apellido}!
-                      </h1>
-                      <p className="hero-subtitle mb-4">
-                        Nos alegra tenerte de vuelta en el portal de Restaurante Pablito.
-                      </p>
+                    {usuario ? (
+                      <div>
+                        <h1 className="hero-title text-gold mb-3">
+                          ¡Bienvenido/a, {usuario.nombre} {usuario.apellido}!
+                        </h1>
+                        <p className="hero-subtitle mb-4">
+                          Nos alegra tenerte de vuelta en el portal de Restaurante Pablito.
+                        </p>
 
-                      <div className="d-flex align-items-center justify-content-center gap-3 flex-wrap">
-                        <button
-                          className="btn btn-gold d-flex align-items-center gap-2 py-3 px-4"
-                          onClick={() => setView("menu")}
-                        >
-                          <ShoppingBag size={20} />
-                          Ver el Menú Delicioso
-                        </button>
+                        <div className="d-flex align-items-center justify-content-center gap-3 flex-wrap">
+                          <button
+                            className="btn btn-gold d-flex align-items-center gap-2 py-3 px-4 fw-bold shadow-sm"
+                            onClick={() => setView("menu")}
+                          >
+                            <ShoppingBag size={20} />
+                            Ver el Menú Delicioso
+                          </button>
 
-                        {usuario.rol === "cliente" && (
                           <button
                             className="btn btn-outline-gold d-flex align-items-center gap-2 py-3 px-4"
                             onClick={() => setView("mis-pedidos")}
@@ -112,45 +170,25 @@ function AppContent() {
                             <Package size={20} />
                             Mis Pedidos
                           </button>
-                        )}
 
-                        <button
-                          className="btn btn-outline-gold d-flex align-items-center gap-2 py-3 px-4"
-                          onClick={() => setView("perfil")}
-                        >
-                          <User size={20} />
-                          Mi Perfil
-                        </button>
-
-                        {usuario.rol === "administrador" && (
                           <button
                             className="btn btn-outline-gold d-flex align-items-center gap-2 py-3 px-4"
-                            onClick={() => setView("admin-pedidos")}
+                            onClick={() => setView("perfil")}
                           >
-                            <ShieldAlert size={20} />
-                            Gestionar Pedidos
+                            <User size={20} />
+                            Mi Perfil
                           </button>
-                        )}
-                      </div>
+                        </div>
 
-                      {/* Tarjeta informativa de rol */}
-                      <div className="mt-5 p-3 border border-glass rounded bg-dark bg-opacity-50 max-w-sm mx-auto">
-                        <div className="d-flex align-items-center justify-content-center gap-2 text-gold small">
-                          {usuario.rol === "administrador" ? (
-                            <>
-                              <ShieldCheck size={18} />
-                              <span className="fw-bold">Nivel de Acceso: Administrador del Sistema</span>
-                            </>
-                          ) : (
-                            <>
-                              <User size={18} />
-                              <span className="fw-bold">Nivel de Acceso: Cliente Registrado</span>
-                            </>
-                          )}
+                        {/* Tarjeta informativa de cliente */}
+                        <div className="mt-5 p-3 border border-glass rounded bg-dark bg-opacity-50 max-w-sm mx-auto">
+                          <div className="d-flex align-items-center justify-content-center gap-2 text-gold small">
+                            <User size={18} />
+                            <span className="fw-bold">Nivel de Acceso: Cliente Registrado</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ) : (
+                    ) : (
                     <div>
                       <h1 className="hero-title text-gold mb-3">Restaurante Pablito</h1>
                       <p className="hero-subtitle mb-4">
@@ -184,6 +222,7 @@ function AppContent() {
               </div>
             </div>
           </div>
+          )
         )}
 
         {view === "menu" && <MenuView setView={setView} addAlert={addAlert} />}
@@ -205,12 +244,20 @@ function AppContent() {
           <OrderTrackingView orderId={currentOrderId} setView={setView} />
         )}
 
+        {view === "admin-dashboard" && usuario?.rol === "administrador" && (
+          <AdminDashboardView setView={setView} addAlert={addAlert} />
+        )}
+
         {view === "admin-productos" && usuario?.rol === "administrador" && (
           <AdminProductsView addAlert={addAlert} />
         )}
 
         {view === "admin-pedidos" && usuario?.rol === "administrador" && (
           <AdminOrdersView addAlert={addAlert} />
+        )}
+
+        {view === "admin-config" && usuario?.rol === "administrador" && (
+          <AdminConfigView addAlert={addAlert} />
         )}
 
         {view === "login" && (
@@ -236,6 +283,7 @@ function AppContent() {
             apiBaseUrl={apiBaseUrl}
             token={token}
             addAlert={addAlert}
+            onUpdateUsuario={handleUpdateUsuario}
           />
         )}
 
