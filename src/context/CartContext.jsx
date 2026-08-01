@@ -21,19 +21,29 @@ export function CartProvider({ children }) {
   }, [cart]);
 
   const addToCart = (producto, cantidad = 1, notas = "") => {
+    const stockMax = producto.stock !== undefined ? parseInt(producto.stock, 10) : 50;
+    if (stockMax <= 0) return false;
+
+    let alcanzadoLimite = false;
     setCart((prevCart) => {
       const index = prevCart.findIndex((item) => item.producto.id === producto.id);
       if (index > -1) {
+        const actual = prevCart[index].cantidad;
+        const deseado = Math.min(stockMax, actual + cantidad);
+        if (deseado === actual) alcanzadoLimite = true;
+
         const updated = [...prevCart];
         updated[index] = {
           ...updated[index],
-          cantidad: updated[index].cantidad + cantidad,
+          cantidad: deseado,
           notas: notas || updated[index].notas,
         };
         return updated;
       }
-      return [...prevCart, { producto, cantidad, notas }];
+      const inicial = Math.min(stockMax, cantidad);
+      return [...prevCart, { producto, cantidad: inicial, notas }];
     });
+    return !alcanzadoLimite;
   };
 
   const removeFromCart = (productoId) => {
@@ -46,9 +56,13 @@ export function CartProvider({ children }) {
       return;
     }
     setCart((prevCart) =>
-      prevCart.map((item) =>
-        item.producto.id === productoId ? { ...item, cantidad: nuevaCantidad } : item
-      )
+      prevCart.map((item) => {
+        if (item.producto.id === productoId) {
+          const stockMax = item.producto.stock !== undefined ? parseInt(item.producto.stock, 10) : 50;
+          return { ...item, cantidad: Math.min(stockMax, nuevaCantidad) };
+        }
+        return item;
+      })
     );
   };
 

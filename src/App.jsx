@@ -14,9 +14,10 @@ import AdminProductsView from "./components/admin/AdminProductsView";
 import AdminOrdersView from "./components/admin/AdminOrdersView";
 import AdminDashboardView from "./components/admin/AdminDashboardView";
 import AdminConfigView from "./components/admin/AdminConfigView";
-import { useOrderSSE } from "./hooks/useOrderSSE";
+import DeliveryView from "./components/DeliveryView";
+import { useOrderAbly } from "./hooks/useOrderAbly";
 import { playNotificationSound } from "./utils/soundUtils";
-import { UtensilsCrossed, ShieldAlert, User, ShieldCheck, ShoppingBag, Package, TrendingUp } from "lucide-react";
+import { UtensilsCrossed, ShieldAlert, User, ShieldCheck, ShoppingBag, Package, TrendingUp, Truck } from "lucide-react";
 
 const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
@@ -65,15 +66,21 @@ function AppContent() {
     setAlerts((prev) => prev.filter((a) => a.id !== id));
   };
 
-  // Manejador global de eventos SSE para mostrar notificaciones flotantes y reproducir sonido en tiempo real
-  const handleOrderSSEUpdate = useCallback((eventData) => {
+  // Manejador global de eventos Ably Realtime para mostrar notificaciones flotantes y reproducir sonido en tiempo real
+  const handleOrderAblyUpdate = useCallback((eventData) => {
     const { tipo, pedido_id, estado } = eventData;
     const nombreEstado = FORMATO_ESTADO[estado] || estado;
 
     // Reproducir el tono suave y brillante de ElevenLabs
     playNotificationSound();
 
-    if (usuario?.rol === "administrador") {
+    if (usuario?.rol === "repartidor") {
+      if (tipo === "asignado") {
+        addAlert(`🛵 ¡Nuevo pedido #${pedido_id} asignado automáticamente a tu cuenta!`, "success");
+      } else {
+        addAlert(`🔔 Entrega #${pedido_id} actualizada: ${nombreEstado}`, "info");
+      }
+    } else if (usuario?.rol === "administrador") {
       if (tipo === "creado") {
         addAlert(`🔔 ¡Nuevo pedido #${pedido_id} recibido!`, "success");
       } else {
@@ -84,8 +91,8 @@ function AppContent() {
     }
   }, [usuario, addAlert]);
 
-  // Activar la conexión SSE en tiempo real
-  useOrderSSE(token, handleOrderSSEUpdate);
+  // Activar la conexión Ably Realtime en tiempo real
+  useOrderAbly(token, handleOrderAblyUpdate);
 
   // Guardar sesión tras login/registro
   const handleLoginSuccess = (newToken, nuevoUsuario) => {
@@ -94,7 +101,13 @@ function AppContent() {
     localStorage.setItem("token", newToken);
     localStorage.setItem("usuario", JSON.stringify(nuevoUsuario));
     addAlert(`Bienvenido/a de nuevo, ${nuevoUsuario.nombre}`, "success");
-    setView("menu");
+    if (nuevoUsuario?.rol === "repartidor") {
+      setView("delivery");
+    } else if (nuevoUsuario?.rol === "administrador") {
+      setView("admin-dashboard");
+    } else {
+      setView("menu");
+    }
   };
 
   // Actualizar datos del usuario autenticado en la sesión global
@@ -242,6 +255,10 @@ function AppContent() {
 
         {view === "seguimiento" && (
           <OrderTrackingView orderId={currentOrderId} setView={setView} />
+        )}
+
+        {view === "delivery" && (
+          <DeliveryView usuario={usuario} addAlert={addAlert} />
         )}
 
         {view === "admin-dashboard" && usuario?.rol === "administrador" && (

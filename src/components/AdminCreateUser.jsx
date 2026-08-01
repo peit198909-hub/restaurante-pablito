@@ -3,6 +3,7 @@ import { User, Mail, Lock, Phone, MapPin, ShieldAlert, UserCheck } from "lucide-
 
 // Componente administrativo exclusivo para crear nuevas cuentas de administradores
 export default function AdminCreateUser({ apiBaseUrl, token, addAlert }) {
+  const [tipoRol, setTipoRol] = useState("repartidor");
   const [nombre, setNombre] = useState("");
   const [apellido, setApellido] = useState("");
   const [correo, setCorreo] = useState("");
@@ -20,7 +21,7 @@ export default function AdminCreateUser({ apiBaseUrl, token, addAlert }) {
     }
 
     if (contrasena.length < 6) {
-      addAlert("La contrasena debe tener al menos 6 caracteres", "danger");
+      addAlert("La contraseña debe tener al menos 6 caracteres", "danger");
       return;
     }
 
@@ -35,7 +36,11 @@ export default function AdminCreateUser({ apiBaseUrl, token, addAlert }) {
         direccion: direccion ? direccion : undefined,
       };
 
-      const respuesta = await fetch(`${apiBaseUrl}/api/usuarios/admin/crear`, {
+      const endpoint = tipoRol === "repartidor"
+        ? `${apiBaseUrl}/api/usuarios/repartidor/crear`
+        : `${apiBaseUrl}/api/usuarios/admin/crear`;
+
+      const respuesta = await fetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -46,10 +51,10 @@ export default function AdminCreateUser({ apiBaseUrl, token, addAlert }) {
 
       const datos = await respuesta.json();
       if (!respuesta.ok) {
-        throw new Error(datos.message || "Error al crear el administrador");
+        throw new Error(datos.message || `Error al crear la cuenta de ${tipoRol}`);
       }
 
-      addAlert(`¡Administrador ${datos.usuario.nombre} creado correctamente!`, "success");
+      addAlert(`¡Cuenta de ${tipoRol === "repartidor" ? "Repartidor" : "Administrador"} ${datos.usuario.nombre} creada correctamente!`, "success");
       
       // Limpiar formulario
       setNombre("");
@@ -72,8 +77,26 @@ export default function AdminCreateUser({ apiBaseUrl, token, addAlert }) {
           <div className="glass-card p-4 p-sm-5">
             <div className="text-center mb-4">
               <ShieldAlert className="text-gold mb-2" size={48} />
-              <h2 className="text-gold display-6 mb-2">Nuevo Administrador</h2>
-              <p className="text-muted">Crea una nueva cuenta administrativa para el restaurante</p>
+              <h2 className="text-gold display-6 mb-2">Crear Cuenta de Personal</h2>
+              <p className="text-muted">Crea cuentas de inicio de sesión para el equipo de trabajo</p>
+
+              {/* Selector de Tipo de Cuenta */}
+              <div className="btn-group w-100 mt-3 p-1 bg-light rounded border border-glass" role="group">
+                <button
+                  type="button"
+                  className={`btn ${tipoRol === "repartidor" ? "btn-gold fw-bold" : "btn-link text-dark text-decoration-none"}`}
+                  onClick={() => setTipoRol("repartidor")}
+                >
+                  🛵 Cuenta de Repartidor / Delivery
+                </button>
+                <button
+                  type="button"
+                  className={`btn ${tipoRol === "administrador" ? "btn-gold fw-bold" : "btn-link text-dark text-decoration-none"}`}
+                  onClick={() => setTipoRol("administrador")}
+                >
+                  🛡️ Cuenta de Administrador
+                </button>
+              </div>
             </div>
 
             <form onSubmit={handleSubmit}>
@@ -189,7 +212,7 @@ export default function AdminCreateUser({ apiBaseUrl, token, addAlert }) {
                 ) : (
                   <>
                     <UserCheck size={20} />
-                    Crear Admin
+                    {tipoRol === "repartidor" ? "Crear Repartidor / Delivery" : "Crear Administrador"}
                   </>
                 )}
               </button>

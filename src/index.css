@@ -48,7 +48,10 @@ h1, h2, h3, .font-serif {
 /* Contenedor Principal */
 .main-content {
   flex: 1;
-  padding: 3rem 1rem;
+  padding-top: 95px;
+  padding-bottom: 3rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
 }
 
 /* Tarjetas y Formularios Calidos Neutros */
@@ -127,9 +130,15 @@ h1, h2, h3, .font-serif {
 
 /* Navegacion en Espresso Calido y Contraste */
 .navbar-custom {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 1030;
   background: var(--espresso);
   border-bottom: 2px solid var(--mustard);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
 
 .navbar-brand-custom {
@@ -165,7 +174,7 @@ h1, h2, h3, .font-serif {
 /* Alertas flotantes en sintonia */
 .custom-alert-container {
   position: fixed;
-  top: 20px;
+  top: 90px;
   right: 20px;
   z-index: 1050;
   max-width: 350px;

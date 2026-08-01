@@ -50,9 +50,17 @@ export default function MenuView({ setView, addAlert }) {
   };
 
   const handleAgregarItem = (producto) => {
-    addToCart(producto, 1);
-    if (addAlert) {
-      addAlert(`"${producto.nombre}" agregado al carrito`, "success");
+    const stockMax = producto.stock !== undefined ? parseInt(producto.stock, 10) : 50;
+    if (stockMax <= 0) {
+      if (addAlert) addAlert(`El producto "${producto.nombre}" está agotado.`, "danger");
+      return;
+    }
+
+    const exito = addToCart(producto, 1);
+    if (!exito) {
+      if (addAlert) addAlert(`Límite alcanzado: solo hay ${stockMax} unidades disponibles de "${producto.nombre}".`, "warning");
+    } else {
+      if (addAlert) addAlert(`"${producto.nombre}" agregado al carrito`, "success");
     }
   };
 
@@ -156,6 +164,23 @@ export default function MenuView({ setView, addAlert }) {
                     <Tag size={12} className="me-1" />
                     {producto.categoria}
                   </span>
+
+                  {/* Insignia de Stock */}
+                  <span
+                    className={`badge position-absolute top-0 start-0 m-3 px-3 py-2 ${
+                      (producto.stock !== undefined ? producto.stock : 50) <= 0
+                        ? "bg-danger text-white fw-bold"
+                        : (producto.stock !== undefined ? producto.stock : 50) <= 5
+                        ? "bg-warning text-dark fw-bold"
+                        : "bg-dark text-gold border border-glass"
+                    }`}
+                  >
+                    {(producto.stock !== undefined ? producto.stock : 50) <= 0
+                      ? "❌ Agotado"
+                      : (producto.stock !== undefined ? producto.stock : 50) <= 5
+                      ? `⚠️ ¡Pocas unidades! (${producto.stock})`
+                      : `Stock: ${producto.stock !== undefined ? producto.stock : 50}`}
+                  </span>
                 </div>
 
                 <div className="card-body d-flex flex-column p-4">
@@ -171,11 +196,16 @@ export default function MenuView({ setView, addAlert }) {
                     </div>
 
                     <button
-                      className="btn btn-gold d-flex align-items-center gap-2 py-2 px-3"
+                      className={`btn d-flex align-items-center gap-2 py-2 px-3 ${
+                        (producto.stock !== undefined ? producto.stock : 50) <= 0
+                          ? "btn-secondary opacity-50 cursor-not-allowed"
+                          : "btn-gold"
+                      }`}
                       onClick={() => handleAgregarItem(producto)}
+                      disabled={(producto.stock !== undefined ? producto.stock : 50) <= 0}
                     >
                       <ShoppingCart size={18} />
-                      Agregar
+                      {(producto.stock !== undefined ? producto.stock : 50) <= 0 ? "Agotado" : "Agregar"}
                     </button>
                   </div>
                 </div>

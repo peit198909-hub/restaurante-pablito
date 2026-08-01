@@ -16,6 +16,9 @@ import {
   X,
   MessageSquare,
   Sparkles,
+  Image as ImageIcon,
+  ExternalLink,
+  ZoomIn,
 } from "lucide-react";
 
 export default function AdminOrdersView({ addAlert }) {
@@ -23,6 +26,7 @@ export default function AdminOrdersView({ addAlert }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filtroEstado, setFiltroEstado] = useState("");
+  const [receiptLightboxUrl, setReceiptLightboxUrl] = useState(null);
 
   // Paginación
   const [page, setPage] = useState(1);
@@ -358,6 +362,7 @@ export default function AdminOrdersView({ addAlert }) {
                 <tr>
                   <th># ID</th>
                   <th>Cliente</th>
+                  <th>Repartidor Asignado</th>
                   <th>Fecha</th>
                   <th>Dirección y Notas</th>
                   <th>Total</th>
@@ -374,6 +379,21 @@ export default function AdminOrdersView({ addAlert }) {
                         {ped.cliente_nombre} {ped.cliente_apellido}
                       </div>
                       <div className="text-muted extra-small">{ped.cliente_correo}</div>
+                    </td>
+                    <td>
+                      {(ped.tipo_entrega === "retiro" || (ped.direccion_entrega && ped.direccion_entrega.toLowerCase().includes("retiro"))) ? (
+                        <span className="badge bg-warning text-dark fw-bold p-2 d-inline-flex align-items-center gap-1 shadow-sm">
+                          🏪 Retiro en Local ($0.00 Envío)
+                        </span>
+                      ) : ped.repartidor_nombre ? (
+                        <span className="badge bg-gold text-dark fw-bold p-2 d-inline-flex align-items-center gap-1 shadow-sm">
+                          🛵 {ped.repartidor_nombre} {ped.repartidor_apellido}
+                        </span>
+                      ) : (
+                        <span className="badge bg-light text-muted border border-glass p-2 d-inline-flex align-items-center gap-1">
+                          ⏳ En cola (sin asignar)
+                        </span>
+                      )}
                     </td>
                     <td className="small text-muted">{formatFecha(ped.creado_en)}</td>
                     <td className="small text-dark fw-medium" style={{ maxWidth: "240px" }}>
@@ -507,6 +527,49 @@ export default function AdminOrdersView({ addAlert }) {
                     <div className="alert alert-warning text-dark border-warning p-3 mb-4 shadow-sm">
                       <strong className="d-block mb-1 text-gold">📝 Notas Adicionales del Cliente:</strong>
                       <span className="fst-italic">"{selectedPedido.pedido.notas}"</span>
+                    </div>
+                  )}
+
+                  {/* Comprobante de transferencia bancaria */}
+                  {selectedPedido.pedido?.metodo_pago === "transferencia" && (
+                    <div className="alert alert-info text-dark border-info p-3 mb-4 shadow-sm bg-white">
+                      <strong className="d-block mb-2 text-gold d-flex align-items-center gap-1">
+                        <ImageIcon size={16} /> Comprobante de Pago por Transferencia:
+                      </strong>
+                      {selectedPedido.pedido.comprobante_url ? (
+                        <div className="d-flex flex-column flex-sm-row align-items-sm-center gap-3">
+                          <div
+                            className="flex-shrink-0 position-relative rounded border border-gold shadow-sm overflow-hidden"
+                            style={{ cursor: "pointer", maxWidth: "200px" }}
+                            onClick={() => setReceiptLightboxUrl(selectedPedido.pedido.comprobante_url)}
+                            title="Haz clic para ver el comprobante en pantalla completa"
+                          >
+                            <img
+                              src={selectedPedido.pedido.comprobante_url}
+                              alt="Comprobante de pago"
+                              className="img-fluid rounded"
+                              style={{ maxHeight: "150px", objectFit: "contain", width: "100%" }}
+                            />
+                          </div>
+                          <div>
+                            <span className="badge bg-success text-white mb-2">Comprobante Adjunto</span>
+                            <p className="small mb-2 text-muted">
+                              Verifica el valor transferido y número de comprobante antes de aprobar el pedido.
+                            </p>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-gold d-inline-flex align-items-center gap-1"
+                              onClick={() => setReceiptLightboxUrl(selectedPedido.pedido.comprobante_url)}
+                            >
+                              <ZoomIn size={14} /> Ver Comprobante Ampliado
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-danger fw-bold small">
+                          ⚠️ El cliente seleccionó transferencia bancaria pero aún no ha adjuntado el comprobante.
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -821,6 +884,73 @@ export default function AdminOrdersView({ addAlert }) {
                     type="button"
                     className="btn btn-outline-secondary px-4"
                     onClick={() => setShowRepartidoresModal(false)}
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* Modal Lightbox Administrador para Ver Comprobante Ampliado */}
+      {receiptLightboxUrl &&
+        createPortal(
+          <div
+            className="modal show d-block"
+            tabIndex="-1"
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              width: "100vw",
+              height: "100vh",
+              backgroundColor: "rgba(42, 34, 31, 0.65)",
+              backdropFilter: "blur(6px)",
+              zIndex: 1090,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "1rem",
+            }}
+            onClick={() => setReceiptLightboxUrl(null)}
+          >
+            <div
+              className="modal-dialog modal-dialog-centered"
+              style={{ maxWidth: "520px", width: "95%" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="modal-content glass-card border-glass shadow-lg text-dark overflow-hidden bg-white">
+                <div className="modal-header border-bottom border-glass p-3 bg-white d-flex align-items-center justify-content-between">
+                  <h5 className="modal-title text-gold fw-bold fs-5 m-0 d-flex align-items-center gap-2">
+                    <ImageIcon size={20} /> Comprobante de Pago — Pedido #{selectedPedido?.pedido?.id}
+                  </h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setReceiptLightboxUrl(null)}
+                  ></button>
+                </div>
+                <div
+                  className="modal-body p-3 text-center d-flex align-items-center justify-content-center"
+                  style={{ backgroundColor: "var(--sand-input)", maxHeight: "75vh", overflow: "auto" }}
+                >
+                  <img
+                    src={receiptLightboxUrl}
+                    alt="Comprobante de pago completo"
+                    className="img-fluid rounded border border-glass shadow-sm"
+                    style={{ maxHeight: "70vh", objectFit: "contain", maxWidth: "100%" }}
+                  />
+                </div>
+                <div className="modal-footer border-top border-glass p-2 bg-white justify-content-between">
+                  <span className="extra-small text-muted">
+                    Comprobante de transferencia bancaria
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-gold px-4"
+                    onClick={() => setReceiptLightboxUrl(null)}
                   >
                     Cerrar
                   </button>

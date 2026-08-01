@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { User, LogOut, ShieldAlert, UtensilsCrossed, Utensils, ShoppingCart, Package, Settings, ClipboardList, TrendingUp } from "lucide-react";
+import { createPortal } from "react-dom";
+import { User, LogOut, ShieldAlert, UtensilsCrossed, Utensils, ShoppingCart, Package, Settings, ClipboardList, TrendingUp, Truck } from "lucide-react";
 import { useCart } from "../context/CartContext";
 
 export default function Navbar({ usuario, currentView, setView, onLogout }) {
@@ -11,8 +12,18 @@ export default function Navbar({ usuario, currentView, setView, onLogout }) {
     setIsOpen(false);
   };
 
-  return (
-    <nav className="navbar navbar-expand-lg navbar-dark navbar-custom py-3">
+  return createPortal(
+    <nav
+      className="navbar navbar-expand-lg navbar-dark navbar-custom py-3"
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        width: "100%",
+        zIndex: 1030,
+      }}
+    >
       <div className="container">
         <a
           className="navbar-brand navbar-brand-custom d-flex align-items-center gap-2"
@@ -109,6 +120,25 @@ export default function Navbar({ usuario, currentView, setView, onLogout }) {
                     >
                       <Package size={16} />
                       Mis Pedidos
+                    </a>
+                  </li>
+                )}
+
+                {/* Mis Entregas (para repartidores autenticados) */}
+                {usuario.rol === "repartidor" && (
+                  <li className="nav-item">
+                    <a
+                      className={`nav-link nav-link-custom d-flex align-items-center gap-1 ${
+                        currentView === "delivery" ? "active" : ""
+                      }`}
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleNavigation("delivery");
+                      }}
+                    >
+                      <Truck size={16} />
+                      Mis Entregas
                     </a>
                   </li>
                 )}
@@ -245,6 +275,7 @@ export default function Navbar({ usuario, currentView, setView, onLogout }) {
           </ul>
         </div>
       </div>
-    </nav>
+    </nav>,
+    document.body
   );
 }

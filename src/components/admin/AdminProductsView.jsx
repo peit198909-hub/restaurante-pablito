@@ -2,12 +2,13 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { apiFetch } from "../../api/client";
 import Pagination from "../Pagination";
-import { Plus, Edit, Eye, EyeOff, Utensils, X, Save } from "lucide-react";
+import { Plus, Edit, Eye, EyeOff, Utensils, X, Save, Upload, Image, CheckCircle2, Folder, FolderPlus, Trash2 } from "lucide-react";
 
 export default function AdminProductsView({ addAlert }) {
   const [productos, setProductos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [uploadingImg, setUploadingImg] = useState(false);
 
   // Estados de paginación
   const [page, setPage] = useState(1);
@@ -24,11 +25,24 @@ export default function AdminProductsView({ addAlert }) {
     categoria: "Platos Principales",
     imagen_url: "",
     disponible: true,
+    stock: 50,
   });
 
   const [submitting, setSubmitting] = useState(false);
 
-  const CATEGORIAS_OPCIONES = [
+  // Estados de Gestión de Categorías
+  const [categoriasList, setCategoriasList] = useState([]);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [editingCatId, setEditingCatId] = useState(null);
+  const [catFormData, setCatFormData] = useState({
+    nombre: "",
+    descripcion: "",
+    orden: 1,
+    activa: true,
+  });
+  const [submittingCat, setSubmittingCat] = useState(false);
+
+  const DEFAULT_CATEGORIAS = [
     "Platos Principales",
     "Bebidas",
     "Postres",
@@ -36,9 +50,109 @@ export default function AdminProductsView({ addAlert }) {
     "Combos",
   ];
 
+  const listaCategoriasOpciones = Array.from(
+    new Set([
+      ...DEFAULT_CATEGORIAS,
+      ...categoriasList.map((c) => c.nombre),
+    ])
+  );
+
   useEffect(() => {
     cargarProductos(page, limit);
+    cargarCategorias();
   }, [page, limit]);
+
+  const cargarCategorias = async () => {
+    try {
+      let res;
+      try {
+        res = await apiFetch("/api/categorias/admin");
+      } catch (e1) {
+        try {
+          res = await apiFetch("/api/productos/categorias/admin");
+        } catch (e2) {
+          res = await apiFetch("/api/categorias");
+        }
+      }
+      if (res && res.categorias) {
+        setCategoriasList(res.categorias);
+      }
+    } catch (err) {
+      console.warn("No se pudo cargar la lista administrativa de categorías:", err);
+    }
+  };
+
+  const handleOpenCategoryModal = () => {
+    setEditingCatId(null);
+    setCatFormData({
+      nombre: "",
+      descripcion: "",
+      orden: (categoriasList.length + 1) * 10,
+      activa: true,
+    });
+    setShowCategoryModal(true);
+  };
+
+  const handleEditCategory = (cat) => {
+    setEditingCatId(cat.id);
+    setCatFormData({
+      nombre: cat.nombre,
+      descripcion: cat.descripcion || "",
+      orden: cat.orden || 0,
+      activa: Boolean(cat.activa),
+    });
+  };
+
+  const handleSubmitCategory = async (e) => {
+    e.preventDefault();
+    if (!catFormData.nombre.trim()) {
+      if (addAlert) addAlert("El nombre de la categoría es obligatorio", "danger");
+      return;
+    }
+
+    setSubmittingCat(true);
+    try {
+      if (editingCatId) {
+        try {
+          await apiFetch(`/api/categorias/${editingCatId}`, { method: "PUT", body: catFormData });
+        } catch (e1) {
+          await apiFetch(`/api/productos/categorias/${editingCatId}`, { method: "PUT", body: catFormData });
+        }
+        if (addAlert) addAlert("Categoría actualizada con éxito", "success");
+      } else {
+        try {
+          await apiFetch("/api/categorias", { method: "POST", body: catFormData });
+        } catch (e1) {
+          await apiFetch("/api/productos/categorias", { method: "POST", body: catFormData });
+        }
+        if (addAlert) addAlert("Nueva categoría creada con éxito", "success");
+      }
+
+      setEditingCatId(null);
+      setCatFormData({ nombre: "", descripcion: "", orden: 1, activa: true });
+      cargarCategorias();
+    } catch (err) {
+      if (addAlert) addAlert(err.message, "danger");
+    } finally {
+      setSubmittingCat(false);
+    }
+  };
+
+  const handleDeleteCategory = async (catId, catNombre) => {
+    if (!window.confirm(`¿Estás seguro de eliminar la categoría "${catNombre}"?`)) return;
+
+    try {
+      try {
+        await apiFetch(`/api/categorias/${catId}`, { method: "DELETE" });
+      } catch (e1) {
+        await apiFetch(`/api/productos/categorias/${catId}`, { method: "DELETE" });
+      }
+      if (addAlert) addAlert(`Categoría "${catNombre}" eliminada con éxito`, "success");
+      cargarCategorias();
+    } catch (err) {
+      if (addAlert) addAlert(err.message, "danger");
+    }
+  };
 
   const cargarProductos = async (targetPage = page, targetLimit = limit) => {
     setLoading(true);
@@ -65,6 +179,7 @@ export default function AdminProductsView({ addAlert }) {
       categoria: "Platos Principales",
       imagen_url: "",
       disponible: true,
+      stock: 50,
     });
     setShowModal(true);
   };
@@ -78,6 +193,7 @@ export default function AdminProductsView({ addAlert }) {
       categoria: prod.categoria,
       imagen_url: prod.imagen_url || "",
       disponible: Boolean(prod.disponible),
+      stock: prod.stock !== undefined ? prod.stock : 50,
     });
     setShowModal(true);
   };
@@ -101,6 +217,44 @@ export default function AdminProductsView({ addAlert }) {
     }
   };
 
+  const handleImageFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      if (addAlert) addAlert("La imagen del producto no debe pesar más de 5MB.", "danger");
+      return;
+    }
+
+    setUploadingImg(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const base64Data = reader.result;
+          const res = await apiFetch("/api/upload/producto", {
+            method: "POST",
+            body: { imagen: base64Data },
+          });
+          setFormData((prev) => ({ ...prev, imagen_url: res.url }));
+          if (addAlert) addAlert("¡Imagen cargada con éxito!", "success");
+        } catch (err) {
+          if (addAlert) addAlert("Error subiendo imagen: " + err.message, "danger");
+        } finally {
+          setUploadingImg(false);
+        }
+      };
+      reader.onerror = () => {
+        if (addAlert) addAlert("Error al leer el archivo de imagen", "danger");
+        setUploadingImg(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      if (addAlert) addAlert(err.message, "danger");
+      setUploadingImg(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -110,11 +264,14 @@ export default function AdminProductsView({ addAlert }) {
       return;
     }
 
+    const stockNum = Math.max(0, parseInt(formData.stock, 10) || 0);
+
     setSubmitting(true);
     try {
       const payload = {
         ...formData,
         precio: precioNum,
+        stock: stockNum,
       };
 
       if (editingId) {
@@ -145,12 +302,18 @@ export default function AdminProductsView({ addAlert }) {
       <div className="d-flex align-items-center justify-content-between mb-4">
         <div>
           <h1 className="hero-title text-gold h2 mb-1">Administración del Menú</h1>
-          <p className="hero-subtitle text-muted mb-0">Gestiona los productos y su disponibilidad.</p>
+          <p className="hero-subtitle text-muted mb-0">Gestiona los productos y las categorías del catálogo.</p>
         </div>
-        <button className="btn btn-gold d-flex align-items-center gap-2" onClick={handleOpenCreate}>
-          <Plus size={18} />
-          Nuevo Producto
-        </button>
+        <div className="d-flex align-items-center gap-2">
+          <button className="btn btn-outline-gold d-flex align-items-center gap-2 shadow-sm" onClick={handleOpenCategoryModal}>
+            <Folder size={18} />
+            Gestionar Categorías
+          </button>
+          <button className="btn btn-gold d-flex align-items-center gap-2 shadow-sm" onClick={handleOpenCreate}>
+            <Plus size={18} />
+            Nuevo Producto
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -171,6 +334,7 @@ export default function AdminProductsView({ addAlert }) {
                   <th>Producto</th>
                   <th>Categoría</th>
                   <th>Precio</th>
+                  <th>Stock</th>
                   <th>Estado</th>
                   <th className="text-end">Acciones</th>
                 </tr>
@@ -178,7 +342,7 @@ export default function AdminProductsView({ addAlert }) {
               <tbody>
                 {productos.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="text-center py-4 text-muted">
+                    <td colSpan="6" className="text-center py-4 text-muted">
                       No hay productos registrados.
                     </td>
                   </tr>
@@ -214,6 +378,21 @@ export default function AdminProductsView({ addAlert }) {
                         <span className="badge badge-category">{prod.categoria}</span>
                       </td>
                       <td className="fw-bold text-gold fs-6">${Number(prod.precio).toFixed(2)}</td>
+                      <td>
+                        <span
+                          className={`badge ${
+                            (prod.stock !== undefined ? prod.stock : 50) <= 0
+                              ? "bg-danger text-white"
+                              : (prod.stock !== undefined ? prod.stock : 50) <= 5
+                              ? "bg-warning text-dark"
+                              : "bg-gold text-dark"
+                          } fw-bold p-2`}
+                        >
+                          {(prod.stock !== undefined ? prod.stock : 50) <= 0
+                            ? "0 (Agotado)"
+                            : `${prod.stock !== undefined ? prod.stock : 50} un.`}
+                        </span>
+                      </td>
                       <td>
                         {prod.disponible ? (
                           <span className="badge badge-available">Disponible</span>
@@ -328,7 +507,7 @@ export default function AdminProductsView({ addAlert }) {
                     </div>
 
                     <div className="row g-3 mb-3">
-                      <div className="col-md-6">
+                      <div className="col-md-4">
                         <label className="form-label text-gold small fw-bold">
                           Precio ($) *
                         </label>
@@ -345,7 +524,23 @@ export default function AdminProductsView({ addAlert }) {
                           required
                         />
                       </div>
-                      <div className="col-md-6">
+                      <div className="col-md-4">
+                        <label className="form-label text-gold small fw-bold">
+                          Stock (Inventario) *
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          className="form-control glass-input w-100"
+                          placeholder="50"
+                          value={formData.stock}
+                          onChange={(e) =>
+                            setFormData({ ...formData, stock: e.target.value })
+                          }
+                          required
+                        />
+                      </div>
+                      <div className="col-md-4">
                         <label className="form-label text-gold small fw-bold">
                           Categoría *
                         </label>
@@ -356,7 +551,7 @@ export default function AdminProductsView({ addAlert }) {
                             setFormData({ ...formData, categoria: e.target.value })
                           }
                         >
-                          {CATEGORIAS_OPCIONES.map((cat) => (
+                          {listaCategoriasOpciones.map((cat) => (
                             <option key={cat} value={cat}>
                               {cat}
                             </option>
@@ -366,18 +561,62 @@ export default function AdminProductsView({ addAlert }) {
                     </div>
 
                     <div className="mb-3">
-                      <label className="form-label text-gold small fw-bold">
-                        URL de Imagen (Opcional)
+                      <label className="form-label text-gold small fw-bold d-flex align-items-center justify-content-between">
+                        <span>Imagen del Producto</span>
+                        <label
+                          htmlFor="productImageUpload"
+                          className={`btn btn-sm btn-gold d-flex align-items-center gap-1 mb-0 ${uploadingImg ? "disabled" : ""}`}
+                          style={{ cursor: "pointer" }}
+                        >
+                          <Upload size={14} />
+                          {uploadingImg ? "Subiendo imagen..." : "Subir imagen desde equipo"}
+                        </label>
                       </label>
+                      <input
+                        type="file"
+                        id="productImageUpload"
+                        accept="image/*"
+                        className="d-none"
+                        onChange={handleImageFileChange}
+                        disabled={uploadingImg}
+                      />
                       <input
                         type="url"
                         className="form-control glass-input w-100"
-                        placeholder="https://ejemplo.com/imagen.jpg"
+                        placeholder="https://... o pega la URL de la imagen"
                         value={formData.imagen_url}
                         onChange={(e) =>
                           setFormData({ ...formData, imagen_url: e.target.value })
                         }
                       />
+                      {formData.imagen_url && (
+                        <div className="mt-2 p-2 border border-glass rounded bg-light d-flex align-items-center justify-content-between">
+                          <div className="d-flex align-items-center gap-2">
+                            <img
+                              src={formData.imagen_url}
+                              alt="Vista previa del plato"
+                              className="rounded object-fit-cover border border-gold"
+                              style={{ width: "48px", height: "48px" }}
+                            />
+                            <div>
+                              <span className="small text-gold fw-bold d-flex align-items-center gap-1">
+                                <CheckCircle2 size={12} /> Imagen Lista
+                              </span>
+                              <span className="extra-small text-muted text-truncate d-block" style={{ maxWidth: "260px" }}>
+                                {formData.imagen_url}
+                              </span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline-danger p-1"
+                            onClick={() => setFormData({ ...formData, imagen_url: "" })}
+                            title="Remover imagen"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     <div className="form-check form-switch mt-4 p-3 bg-light rounded border border-glass d-flex align-items-center justify-content-between">
@@ -418,6 +657,190 @@ export default function AdminProductsView({ addAlert }) {
                     </button>
                   </div>
                 </form>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* Modal de Gestión de Categorías */}
+      {showCategoryModal &&
+        createPortal(
+          <div
+            className="modal show d-block"
+            tabIndex="-1"
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              width: "100vw",
+              height: "100vh",
+              backgroundColor: "rgba(42, 34, 31, 0.75)",
+              backdropFilter: "blur(5px)",
+              zIndex: 1060,
+              overflowY: "auto",
+            }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowCategoryModal(false);
+            }}
+          >
+            <div className="modal-dialog modal-dialog-centered modal-lg">
+              <div className="modal-content glass-card shadow-lg border-glass text-dark">
+                <div className="modal-header border-bottom border-glass p-4 d-flex align-items-center justify-content-between">
+                  <h5 className="modal-title text-gold fw-bold fs-4 m-0 d-flex align-items-center gap-2">
+                    <Folder size={22} /> Gestión de Categorías del Menú
+                  </h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => setShowCategoryModal(false)}
+                  ></button>
+                </div>
+
+                <div className="modal-body p-4">
+                  {/* Formulario para agregar / editar categoría */}
+                  <form onSubmit={handleSubmitCategory} className="p-3 bg-light rounded border border-glass mb-4 shadow-sm">
+                    <h6 className="text-gold fw-bold mb-3 d-flex align-items-center gap-1">
+                      <FolderPlus size={16} /> {editingCatId ? "Editar Categoría" : "Agregar Nueva Categoría"}
+                    </h6>
+                    <div className="row g-3">
+                      <div className="col-md-6">
+                        <label className="form-label text-gold extra-small fw-bold mb-1">Nombre de Categoría *</label>
+                        <input
+                          type="text"
+                          className="form-control glass-input"
+                          placeholder="Ej. Mariscos, Combos, Bebidas"
+                          value={catFormData.nombre}
+                          onChange={(e) => setCatFormData({ ...catFormData, nombre: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div className="col-md-3">
+                        <label className="form-label text-gold extra-small fw-bold mb-1">Orden de Mostrar</label>
+                        <input
+                          type="number"
+                          className="form-control glass-input"
+                          placeholder="10"
+                          value={catFormData.orden}
+                          onChange={(e) => setCatFormData({ ...catFormData, orden: e.target.value })}
+                        />
+                      </div>
+                      <div className="col-md-3 d-flex align-items-end">
+                        <div className="form-check form-switch mb-2">
+                          <input
+                            className="form-check-input"
+                            type="checkbox"
+                            id="catActivaCheck"
+                            checked={catFormData.activa}
+                            onChange={(e) => setCatFormData({ ...catFormData, activa: e.target.checked })}
+                          />
+                          <label className="form-check-label extra-small fw-bold text-dark me-0 ms-2" htmlFor="catActivaCheck">
+                            Activa
+                          </label>
+                        </div>
+                      </div>
+                      <div className="col-12">
+                        <label className="form-label text-gold extra-small fw-bold mb-1">Descripción Opcional</label>
+                        <input
+                          type="text"
+                          className="form-control glass-input"
+                          placeholder="Breve descripción..."
+                          value={catFormData.descripcion}
+                          onChange={(e) => setCatFormData({ ...catFormData, descripcion: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className="d-flex justify-content-end gap-2 mt-3">
+                      {editingCatId && (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-secondary"
+                          onClick={() => {
+                            setEditingCatId(null);
+                            setCatFormData({ nombre: "", descripcion: "", orden: 1, activa: true });
+                          }}
+                        >
+                          Cancelar Edición
+                        </button>
+                      )}
+                      <button type="submit" className="btn btn-sm btn-gold d-flex align-items-center gap-1" disabled={submittingCat}>
+                        <Save size={14} />
+                        {submittingCat ? "Guardando..." : editingCatId ? "Actualizar Categoría" : "Guardar Categoría"}
+                      </button>
+                    </div>
+                  </form>
+
+                  {/* Tabla de Categorías registradas */}
+                  <h6 className="text-gold fw-bold mb-2">Categorías Registradas en el Sistema</h6>
+                  <div className="table-responsive border border-glass rounded">
+                    <table className="table table-hover align-middle mb-0 extra-small">
+                      <thead className="bg-light">
+                        <tr>
+                          <th>Categoría</th>
+                          <th>Orden</th>
+                          <th>Productos Vinc.</th>
+                          <th>Estado</th>
+                          <th className="text-end">Acciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {categoriasList.length === 0 ? (
+                          <tr>
+                            <td colSpan="5" className="text-center py-3 text-muted">
+                              No hay categorías registradas aún.
+                            </td>
+                          </tr>
+                        ) : (
+                          categoriasList.map((cat) => (
+                            <tr key={cat.id}>
+                              <td>
+                                <div className="fw-bold text-dark">{cat.nombre}</div>
+                                {cat.descripcion && <div className="text-muted extra-small">{cat.descripcion}</div>}
+                              </td>
+                              <td className="fw-bold text-gold">{cat.orden}</td>
+                              <td>
+                                <span className="badge bg-light text-dark border border-glass">
+                                  {cat.total_productos || 0} prods
+                                </span>
+                              </td>
+                              <td>
+                                {cat.activa ? (
+                                  <span className="badge bg-success text-white">Activa</span>
+                                ) : (
+                                  <span className="badge bg-secondary text-white">Inactiva</span>
+                                )}
+                              </td>
+                              <td className="text-end">
+                                <div className="d-flex justify-content-end gap-1">
+                                  <button
+                                    className="btn btn-sm btn-outline-gold p-1"
+                                    onClick={() => handleEditCategory(cat)}
+                                    title="Editar categoría"
+                                  >
+                                    <Edit size={14} />
+                                  </button>
+                                  <button
+                                    className="btn btn-sm btn-outline-danger p-1"
+                                    onClick={() => handleDeleteCategory(cat.id, cat.nombre)}
+                                    title="Eliminar categoría"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="modal-footer border-top border-glass p-3">
+                  <button type="button" className="btn btn-gold btn-sm px-4" onClick={() => setShowCategoryModal(false)}>
+                    Cerrar
+                  </button>
+                </div>
               </div>
             </div>
           </div>,

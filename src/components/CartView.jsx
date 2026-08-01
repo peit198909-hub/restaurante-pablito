@@ -19,6 +19,9 @@ import {
   AlertOctagon,
   Clock,
   Compass,
+  CheckCircle2,
+  X,
+  Store,
 } from "lucide-react";
 
 // Fórmula de Haversine para distancia en kilómetros
@@ -38,16 +41,57 @@ function calcularDistanciaHaversine(lat1, lon1, lat2, lon2) {
   return Math.round(dist * 10) / 10;
 }
 
-export default function CartView({ usuario, setView, addAlert, onSetCurrentOrderId }) {
-  const { cart, updateQuantity, removeFromCart, clearCart, subtotal } = useCart();
+export default function CartView({ usuario, setView, onSetCurrentOrderId, addAlert }) {
+  const { cart, removeFromCart, updateQuantity, clearCart, subtotal } = useCart();
 
-  const [direccion, setDireccion] = useState(usuario?.direccion || "");
-  const [telefono, setTelefono] = useState(usuario?.telefono || "");
+  const [direccion, setDireccion] = useState("");
+  const [telefono, setTelefono] = useState("");
   const [notas, setNotas] = useState("");
   const [metodoPago, setMetodoPago] = useState("efectivo");
-  const [distanciaKm, setDistanciaKm] = useState(2.0); // Distancia por defecto en km
+  const [distanciaKm, setDistanciaKm] = useState(2.0);
   const [submitting, setSubmitting] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
+  const [comprobanteUrl, setComprobanteUrl] = useState("");
+  const [uploadingComprobante, setUploadingComprobante] = useState(false);
+  const [tipoEntrega, setTipoEntrega] = useState("delivery"); // 'delivery' | 'retiro'
+
+  const handleComprobanteFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      if (addAlert) addAlert("El comprobante de transferencia no debe pesar más de 5MB.", "danger");
+      return;
+    }
+
+    setUploadingComprobante(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const base64Data = reader.result;
+          const res = await apiFetch("/api/upload/comprobante", {
+            method: "POST",
+            body: { imagen: base64Data },
+          });
+          setComprobanteUrl(res.url);
+          if (addAlert) addAlert("¡Comprobante subido con éxito!", "success");
+        } catch (err) {
+          if (addAlert) addAlert("Error subiendo comprobante: " + err.message, "danger");
+        } finally {
+          setUploadingComprobante(false);
+        }
+      };
+      reader.onerror = () => {
+        if (addAlert) addAlert("Error al leer el archivo de comprobante", "danger");
+        setUploadingComprobante(false);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      if (addAlert) addAlert(err.message, "danger");
+      setUploadingComprobante(false);
+    }
+  };
 
   // Estado de la configuración del negocio
   const [config, setConfig] = useState(null);
@@ -77,7 +121,7 @@ export default function CartView({ usuario, setView, addAlert, onSetCurrentOrder
     }
   }, [usuario]);
 
-  // Cálculo de impuesto y envío
+  // Cálculo de impuesto y envío ($0.00 si es retiro en local)
   const IVA_RATE = 0.15;
   const impuesto = Math.round(subtotal * IVA_RATE * 100) / 100;
 
@@ -85,9 +129,11 @@ export default function CartView({ usuario, setView, addAlert, onSetCurrentOrder
   const precioKm = config?.precio_por_km ?? 0.50;
   const maxKm = config?.distancia_maxima_km ?? 15.0;
 
-  const costoEnvio = distanciaKm > 0
-    ? Math.round((costoBase + (distanciaKm * precioKm)) * 100) / 100
-    : costoBase;
+  const costoEnvio = tipoEntrega === "retiro"
+    ? 0
+    : (distanciaKm > 0
+        ? Math.round((costoBase + (distanciaKm * precioKm)) * 100) / 100
+        : costoBase);
 
   const total = Math.round((subtotal + impuesto + costoEnvio) * 100) / 100;
 
@@ -110,12 +156,12 @@ export default function CartView({ usuario, setView, addAlert, onSetCurrentOrder
       return;
     }
 
-    if (!direccion.trim()) {
+    if (tipoEntrega === "delivery" && !direccion.trim()) {
       if (addAlert) addAlert("Por favor ingresa una dirección de entrega válida.", "danger");
       return;
     }
 
-    if (distanciaKm > maxKm) {
+    if (tipoEntrega === "delivery" && distanciaKm > maxKm) {
       if (addAlert) addAlert(`La distancia de envío (${distanciaKm} km) supera la cobertura máxima del local (${maxKm} km).`, "danger");
       return;
     }
@@ -128,16 +174,23 @@ export default function CartView({ usuario, setView, addAlert, onSetCurrentOrder
         notas: item.notas || "",
       }));
 
+      const payload = {
+        items: itemsPayload,
+        direccion_entrega: tipoEntrega === "retiro" ? "Retiro en el local — Restaurante Pablito" : direccion.trim(),
+        telefono_contacto: telefono.trim(),
+        notas: notas.trim(),
+        metodo_pago: metodoPago,
+        distancia_km: tipoEntrega === "retiro" ? 0 : distanciaKm,
+        tipo_entrega: tipoEntrega,
+      };
+
+      if (metodoPago === "transferencia" && comprobanteUrl) {
+        payload.comprobante_url = comprobanteUrl;
+      }
+
       const res = await apiFetch("/api/pedidos", {
         method: "POST",
-        body: {
-          items: itemsPayload,
-          direccion_entrega: direccion.trim(),
-          telefono_contacto: telefono.trim(),
-          notas: notas.trim(),
-          metodo_pago: metodoPago,
-          distancia_km: distanciaKm,
-        },
+        body: payload,
       });
 
       if (addAlert) {
@@ -288,76 +341,126 @@ export default function CartView({ usuario, setView, addAlert, onSetCurrentOrder
             <h2 className="h5 text-gold mb-4 border-bottom border-glass pb-2">Información de Entrega</h2>
 
             <form onSubmit={handleConfirmarPedido}>
-              {/* Dirección de Entrega Dinámica */}
-              <div className="mb-3">
-                <label className="form-label text-gold small fw-bold d-flex align-items-center justify-content-between">
-                  <span className="d-flex align-items-center gap-1">
-                    <MapPin size={16} /> Dirección de Entrega *
-                  </span>
-                  <button
-                    type="button"
-                    className="btn btn-link text-gold p-0 text-decoration-none extra-small fw-bold d-flex align-items-center gap-1"
-                    onClick={() => setShowMapPicker(true)}
-                  >
-                    <Navigation size={12} /> Seleccionar en Mapa / GPS
-                  </button>
+              {/* Selector de Modalidad de Entrega */}
+              <div className="mb-4">
+                <label className="form-label text-gold small fw-bold d-flex align-items-center gap-1 mb-2">
+                  <Truck size={16} /> Modalidad de Entrega *
                 </label>
-                <div className="input-group shadow-sm mb-2">
-                  <input
-                    type="text"
-                    className="form-control glass-input"
-                    placeholder="Calle principal, número y referencia"
-                    value={direccion}
-                    onChange={(e) => setDireccion(e.target.value)}
-                    required
-                  />
-                  <button
-                    type="button"
-                    className="btn btn-gold d-flex align-items-center gap-1"
-                    onClick={() => setShowMapPicker(true)}
-                    title="Abrir mapa interactivo"
-                  >
-                    <MapPin size={16} />
-                    <span className="d-none d-sm-inline">Mapa</span>
-                  </button>
+                <div className="row g-2">
+                  <div className="col-6">
+                    <button
+                      type="button"
+                      className={`btn w-100 p-3 rounded d-flex flex-column align-items-center justify-content-center gap-1 transition-all ${
+                        tipoEntrega === "delivery"
+                          ? "btn-gold fw-bold shadow"
+                          : "btn-outline-secondary text-dark border-glass bg-light"
+                      }`}
+                      onClick={() => setTipoEntrega("delivery")}
+                    >
+                      <Truck size={22} />
+                      <span className="small">Envío a Domicilio</span>
+                    </button>
+                  </div>
+                  <div className="col-6">
+                    <button
+                      type="button"
+                      className={`btn w-100 p-3 rounded d-flex flex-column align-items-center justify-content-center gap-1 transition-all ${
+                        tipoEntrega === "retiro"
+                          ? "btn-gold fw-bold shadow"
+                          : "btn-outline-secondary text-dark border-glass bg-light"
+                      }`}
+                      onClick={() => setTipoEntrega("retiro")}
+                    >
+                      <Store size={22} />
+                      <span className="small">Retiro en Local ($0.00)</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              {/* Selector de Distancia en KM para Delivery */}
-              <div className="mb-3 p-3 rounded border border-glass bg-dark bg-opacity-30">
-                <label className="form-label text-gold small fw-bold d-flex align-items-center justify-content-between mb-1">
-                  <span className="d-flex align-items-center gap-1">
-                    <Truck size={16} /> Distancia de Envío (KM)
-                  </span>
-                  <span className="badge bg-gold text-dark fw-bold">{distanciaKm} km</span>
-                </label>
-                <div className="d-flex align-items-center gap-2">
-                  <input
-                    type="range"
-                    className="form-range flex-grow-1"
-                    min="0.5"
-                    max={maxKm}
-                    step="0.5"
-                    value={distanciaKm}
-                    onChange={(e) => setDistanciaKm(parseFloat(e.target.value))}
-                  />
-                  <input
-                    type="number"
-                    step="0.1"
-                    min="0.1"
-                    max={maxKm}
-                    className="form-control glass-input text-center fw-bold"
-                    style={{ width: "80px" }}
-                    value={distanciaKm}
-                    onChange={(e) => setDistanciaKm(parseFloat(e.target.value) || 0)}
-                  />
+              {tipoEntrega === "delivery" ? (
+                <>
+                  {/* Dirección de Entrega Dinámica */}
+                  <div className="mb-3">
+                    <label className="form-label text-gold small fw-bold d-flex align-items-center justify-content-between">
+                      <span className="d-flex align-items-center gap-1">
+                        <MapPin size={16} /> Dirección de Entrega *
+                      </span>
+                      <button
+                        type="button"
+                        className="btn btn-link text-gold p-0 text-decoration-none extra-small fw-bold d-flex align-items-center gap-1"
+                        onClick={() => setShowMapPicker(true)}
+                      >
+                        <Navigation size={12} /> Seleccionar en Mapa / GPS
+                      </button>
+                    </label>
+                    <div className="input-group shadow-sm mb-2">
+                      <input
+                        type="text"
+                        className="form-control glass-input"
+                        placeholder="Calle principal, número y referencia"
+                        value={direccion}
+                        onChange={(e) => setDireccion(e.target.value)}
+                        required
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-gold d-flex align-items-center gap-1"
+                        onClick={() => setShowMapPicker(true)}
+                        title="Abrir mapa interactivo"
+                      >
+                        <MapPin size={16} />
+                        <span className="d-none d-sm-inline">Mapa</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Selector de Distancia en KM para Delivery */}
+                  <div className="mb-3 p-3 rounded border border-glass bg-dark bg-opacity-30">
+                    <label className="form-label text-gold small fw-bold d-flex align-items-center justify-content-between mb-1">
+                      <span className="d-flex align-items-center gap-1">
+                        <Truck size={16} /> Distancia de Envío (KM)
+                      </span>
+                      <span className="badge bg-gold text-dark fw-bold">{distanciaKm} km</span>
+                    </label>
+                    <div className="d-flex align-items-center gap-2">
+                      <input
+                        type="range"
+                        className="form-range flex-grow-1"
+                        min="0.5"
+                        max={maxKm}
+                        step="0.5"
+                        value={distanciaKm}
+                        onChange={(e) => setDistanciaKm(parseFloat(e.target.value))}
+                      />
+                      <input
+                        type="number"
+                        step="0.1"
+                        min="0.1"
+                        max={maxKm}
+                        className="form-control glass-input text-center fw-bold"
+                        style={{ width: "80px" }}
+                        value={distanciaKm}
+                        onChange={(e) => setDistanciaKm(parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                    <div className="d-flex justify-content-between extra-small text-muted mt-1">
+                      <span>Base: ${costoBase.toFixed(2)}</span>
+                      <span>+${precioKm.toFixed(2)}/km</span>
+                      <span>Máx: {maxKm} km</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="mb-3 p-3 rounded border border-gold bg-warning bg-opacity-10 text-dark shadow-sm">
+                  <div className="d-flex align-items-center gap-2 mb-1 fw-bold text-gold">
+                    <Store size={18} /> Retiro en Restaurante Pablito
+                  </div>
+                  <p className="extra-small mb-0 text-muted">
+                    No se cobrará costo de envío ($0.00). Podrás retirar tu comida en el local en cuanto el pedido cambie a <strong>"Listo para Entrega"</strong>.
+                  </p>
                 </div>
-                <div className="d-flex justify-content-between extra-small text-muted mt-1">
-                  <span>Base: ${costoBase.toFixed(2)}</span>
-                  <span>+${precioKm.toFixed(2)}/km</span>
-                  <span>Máx: {maxKm} km</span>
-                </div>
-              </div>
+              )}
 
               {/* Teléfono de contacto */}
               <div className="mb-3">
@@ -393,13 +496,85 @@ export default function CartView({ usuario, setView, addAlert, onSetCurrentOrder
                   <CreditCard size={16} /> Método de Pago
                 </label>
                 <select
-                  className="form-select glass-input"
+                  className="form-select glass-input mb-3"
                   value={metodoPago}
                   onChange={(e) => setMetodoPago(e.target.value)}
                 >
                   <option value="efectivo">Efectivo contra entrega</option>
                   <option value="transferencia">Transferencia Bancaria</option>
                 </select>
+
+                {metodoPago === "transferencia" && (
+                  <div className="p-3 border border-glass rounded bg-dark bg-opacity-30 fade-in-up">
+                    <h6 className="text-gold fw-bold mb-2 small d-flex align-items-center gap-1">
+                      <CreditCard size={14} /> Datos para Transferencia Bancaria
+                    </h6>
+                    <div className="extra-small text-muted mb-3 bg-white p-2 rounded border border-glass">
+                      <div><strong>Banco:</strong> Banco Pichincha</div>
+                      <div><strong>Tipo de Cuenta:</strong> Ahorros</div>
+                      <div><strong>Nº de Cuenta:</strong> 2205489100</div>
+                      <div><strong>Titular:</strong> Restaurante Pablito S.A.</div>
+                      <div><strong>RUC:</strong> 1792345678001</div>
+                    </div>
+
+                    <label className="form-label text-gold extra-small fw-bold d-block mb-1">
+                      Comprobante de Transferencia
+                    </label>
+                    <div className="d-flex align-items-center gap-2">
+                      <label
+                        htmlFor="comprobanteUploadInput"
+                        className={`btn btn-sm btn-gold d-flex align-items-center gap-1 w-100 justify-content-center ${
+                          uploadingComprobante ? "disabled" : ""
+                        }`}
+                        style={{ cursor: "pointer" }}
+                      >
+                        <Upload size={14} />
+                        {uploadingComprobante
+                          ? "Subiendo comprobante..."
+                          : comprobanteUrl
+                          ? "Cambiar Comprobante"
+                          : "Adjuntar Foto del Comprobante"}
+                      </label>
+                      <input
+                        type="file"
+                        id="comprobanteUploadInput"
+                        accept="image/*"
+                        className="d-none"
+                        onChange={handleComprobanteFileChange}
+                        disabled={uploadingComprobante}
+                      />
+                    </div>
+
+                    {comprobanteUrl && (
+                      <div className="mt-2 p-2 border border-glass rounded bg-white d-flex align-items-center justify-content-between">
+                        <div className="d-flex align-items-center gap-2">
+                          <img
+                            src={comprobanteUrl}
+                            alt="Comprobante"
+                            className="rounded object-fit-cover border border-gold"
+                            style={{ width: "45px", height: "45px" }}
+                          />
+                          <div>
+                            <span className="extra-small text-success fw-bold d-flex align-items-center gap-1">
+                              <CheckCircle2 size={12} /> Comprobante Listo
+                            </span>
+                            <span className="extra-small text-muted text-truncate d-block" style={{ maxWidth: "200px" }}>
+                              {comprobanteUrl}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-danger p-1"
+                          onClick={() => setComprobanteUrl("")}
+                          title="Eliminar comprobante"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Desglose de Totales */}
