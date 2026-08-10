@@ -334,9 +334,9 @@ export default function AdminPosView({ addAlert, setView }) {
 
         {/* Columna Derecha: Comanda / Carrito POS */}
         <div className="col-lg-5 col-xl-4">
-          <div className="glass-card p-3 border-glass shadow-lg sticky-top bg-dark text-white" style={{ top: "90px" }}>
-            <h4 className="text-gold fw-bold fs-5 mb-3 d-flex align-items-center justify-content-between border-bottom border-secondary pb-2">
-              <span className="d-flex align-items-center gap-2 text-white">
+          <div className="glass-card p-4 border-glass shadow-sm sticky-top bg-white text-dark" style={{ top: "90px" }}>
+            <h4 className="text-dark fw-bold fs-5 mb-3 d-flex align-items-center justify-content-between border-bottom border-light pb-2">
+              <span className="d-flex align-items-center gap-2">
                 <ShoppingCart size={20} className="text-gold" /> Comanda de Venta
               </span>
               <span className="badge bg-gold text-dark fs-6 rounded-pill">{cartItems.length} ítems</span>
@@ -345,18 +345,18 @@ export default function AdminPosView({ addAlert, setView }) {
             {/* Ítems agregados */}
             <div className="overflow-auto mb-3" style={{ maxHeight: "250px" }}>
               {cartItems.length === 0 ? (
-                <div className="text-center py-4 text-white opacity-75 border border-dashed border-secondary rounded p-3">
-                  <ShoppingCart size={32} className="mb-2 text-gold opacity-75" />
-                  <p className="small mb-0 text-white">Haz clic en los productos del catálogo para agregarlos a la comanda.</p>
+                <div className="text-center py-4 text-muted border border-dashed rounded p-3 bg-light">
+                  <ShoppingCart size={32} className="mb-2 text-gold opacity-50" />
+                  <p className="small mb-0 text-muted">Haz clic en los productos del catálogo para agregarlos a la comanda.</p>
                 </div>
               ) : (
                 cartItems.map((item) => (
                   <div
                     key={item.producto_id}
-                    className="p-2 mb-2 rounded bg-secondary bg-opacity-25 border border-secondary d-flex align-items-center justify-content-between gap-2"
+                    className="p-2 mb-2 rounded bg-light border border-light d-flex align-items-center justify-content-between gap-2"
                   >
                     <div className="flex-grow-1 overflow-hidden">
-                      <span className="text-white fw-bold small text-truncate d-block">{item.nombre}</span>
+                      <span className="text-dark fw-bold small text-truncate d-block">{item.nombre}</span>
                       <span className="text-gold extra-small fw-bold">
                         ${item.precio.toFixed(2)} x {item.cantidad} = ${(item.precio * item.cantidad).toFixed(2)}
                       </span>
@@ -364,12 +364,12 @@ export default function AdminPosView({ addAlert, setView }) {
 
                     <div className="d-flex align-items-center gap-1">
                       <button
-                        className="btn btn-sm btn-outline-light px-2 py-0"
+                        className="btn btn-sm btn-outline-secondary px-2 py-0"
                         onClick={() => handleUpdateCantidad(item.producto_id, -1)}
                       >
                         <Minus size={12} />
                       </button>
-                      <span className="fw-bold text-white px-1 small">{item.cantidad}</span>
+                      <span className="fw-bold text-dark px-1 small">{item.cantidad}</span>
                       <button
                         className="btn btn-sm btn-outline-gold px-2 py-0"
                         onClick={() => handleUpdateCantidad(item.producto_id, 1)}
@@ -389,19 +389,19 @@ export default function AdminPosView({ addAlert, setView }) {
             </div>
 
             {/* Opciones del Cliente */}
-            <div className="mb-3 pt-2 border-top border-secondary">
-              <label className="form-label text-white extra-small fw-bold mb-1">Cliente de la Venta:</label>
+            <div className="mb-3 pt-2 border-top border-light">
+              <label className="form-label text-dark extra-small fw-bold mb-1">Cliente de la Venta:</label>
               <div className="btn-group w-100 mb-2">
                 <button
                   type="button"
-                  className={`btn btn-sm ${tipoCliente === "final" ? "btn-gold text-white" : "btn-outline-light text-white"}`}
+                  className={`btn btn-sm ${tipoCliente === "final" ? "btn-gold" : "btn-outline-gold"}`}
                   onClick={() => setTipoCliente("final")}
                 >
                   Cliente Presencial
                 </button>
                 <button
                   type="button"
-                  className={`btn btn-sm ${tipoCliente === "registrado" ? "btn-gold text-white" : "btn-outline-light text-white"}`}
+                  className={`btn btn-sm ${tipoCliente === "registrado" ? "btn-gold" : "btn-outline-gold"}`}
                   onClick={() => setTipoCliente("registrado")}
                 >
                   Cliente Registrado
@@ -411,22 +411,20 @@ export default function AdminPosView({ addAlert, setView }) {
               {tipoCliente === "final" ? (
                 <input
                   type="text"
-                  className="form-control form-control-sm bg-secondary bg-opacity-25 text-white border-secondary"
-                  style={{ color: "#ffffff" }}
+                  className="form-control form-control-sm glass-input"
                   placeholder="Nombre cliente (ej. Juan Pérez)"
                   value={nombreConsumidorFinal}
                   onChange={(e) => setNombreConsumidorFinal(e.target.value)}
                 />
               ) : (
                 <select
-                  className="form-select form-select-sm bg-secondary bg-opacity-25 text-white border-secondary"
-                  style={{ color: "#ffffff" }}
+                  className="form-select form-select-sm glass-input"
                   value={clienteSeleccionadoId}
                   onChange={(e) => setClienteSeleccionadoId(e.target.value)}
                 >
-                  <option value="" className="bg-dark text-white">-- Seleccionar Cliente Registrado --</option>
+                  <option value="">-- Seleccionar Cliente Registrado --</option>
                   {clientes.map((c) => (
-                    <option key={c.id} value={c.id} className="bg-dark text-white">
+                    <option key={c.id} value={c.id}>
                       {c.nombre} {c.apellido} ({c.correo})
                     </option>
                   ))}
@@ -436,18 +434,18 @@ export default function AdminPosView({ addAlert, setView }) {
 
             {/* Tipo de Entrega */}
             <div className="mb-3">
-              <label className="form-label text-white extra-small fw-bold mb-1">Modalidad de Entrega:</label>
+              <label className="form-label text-dark extra-small fw-bold mb-1">Modalidad de Entrega:</label>
               <div className="btn-group w-100 mb-2">
                 <button
                   type="button"
-                  className={`btn btn-sm ${tipoEntrega === "retiro" ? "btn-gold text-white" : "btn-outline-light text-white"}`}
+                  className={`btn btn-sm ${tipoEntrega === "retiro" ? "btn-gold" : "btn-outline-gold"}`}
                   onClick={() => setTipoEntrega("retiro")}
                 >
                   Retiro / Local ($0.00)
                 </button>
                 <button
                   type="button"
-                  className={`btn btn-sm ${tipoEntrega === "delivery" ? "btn-gold text-white" : "btn-outline-light text-white"}`}
+                  className={`btn btn-sm ${tipoEntrega === "delivery" ? "btn-gold" : "btn-outline-gold"}`}
                   onClick={() => setTipoEntrega("delivery")}
                 >
                   Delivery a Domicilio
@@ -458,20 +456,19 @@ export default function AdminPosView({ addAlert, setView }) {
                 <div className="d-flex flex-column gap-2">
                   <input
                     type="text"
-                    className="form-control form-control-sm bg-secondary bg-opacity-25 text-white border-secondary"
-                    style={{ color: "#ffffff" }}
+                    className="form-control form-control-sm glass-input"
                     placeholder="Dirección de entrega a domicilio"
                     value={direccionEntrega}
                     onChange={(e) => setDireccionEntrega(e.target.value)}
                   />
                   <div className="d-flex align-items-center gap-2">
-                    <span className="extra-small text-white">Distancia estimada (km):</span>
+                    <span className="extra-small text-muted">Distancia estimada (km):</span>
                     <input
                       type="number"
                       step="0.1"
                       min="0"
-                      className="form-control form-control-sm bg-secondary bg-opacity-25 text-white border-secondary"
-                      style={{ width: "80px", color: "#ffffff" }}
+                      className="form-control form-control-sm glass-input"
+                      style={{ width: "80px" }}
                       value={distanciaKm}
                       onChange={(e) => setDistanciaKm(parseFloat(e.target.value) || 0)}
                     />
@@ -482,14 +479,14 @@ export default function AdminPosView({ addAlert, setView }) {
 
             {/* Método de Pago y Cambio en Efectivo */}
             <div className="mb-3">
-              <label className="form-label text-white extra-small fw-bold mb-1">Método de Pago:</label>
+              <label className="form-label text-dark extra-small fw-bold mb-1">Método de Pago:</label>
               <div className="row g-1 mb-2">
                 {["efectivo", "transferencia", "otro"].map((m) => (
                   <div key={m} className="col-4">
                     <button
                       type="button"
                       className={`btn btn-sm w-100 text-capitalize ${
-                        metodoPago === m ? "btn-gold text-white" : "btn-outline-light text-white"
+                        metodoPago === m ? "btn-gold" : "btn-outline-gold"
                       }`}
                       onClick={() => setMetodoPago(m)}
                     >
@@ -500,21 +497,21 @@ export default function AdminPosView({ addAlert, setView }) {
               </div>
 
               {metodoPago === "efectivo" && (
-                <div className="p-2 rounded bg-secondary bg-opacity-25 border border-secondary">
+                <div className="p-2 rounded bg-light border border-light">
                   <div className="d-flex align-items-center justify-content-between mb-1">
-                    <span className="extra-small text-white fw-bold">Efectivo Recibido:</span>
+                    <span className="extra-small text-dark fw-bold">Efectivo Recibido:</span>
                     <input
                       type="number"
                       step="0.01"
-                      className="form-control form-control-sm bg-dark text-white border-secondary text-end fw-bold"
-                      style={{ width: "110px", color: "#ffffff" }}
+                      className="form-control form-control-sm glass-input text-end fw-bold"
+                      style={{ width: "110px" }}
                       placeholder="$0.00"
                       value={montoPagado}
                       onChange={(e) => setMontoPagado(e.target.value)}
                     />
                   </div>
                   <div className="d-flex align-items-center justify-content-between">
-                    <span className="extra-small text-white fw-bold">Cambio a Entregar:</span>
+                    <span className="extra-small text-dark fw-bold">Cambio a Entregar:</span>
                     <span className="fw-bold text-success fs-6">${cambioEfectivo}</span>
                   </div>
                 </div>
@@ -523,38 +520,37 @@ export default function AdminPosView({ addAlert, setView }) {
 
             {/* Estado Inicial del Pedido */}
             <div className="mb-3">
-              <label className="form-label text-white extra-small fw-bold mb-1">Estado del Pedido:</label>
+              <label className="form-label text-dark extra-small fw-bold mb-1">Estado del Pedido:</label>
               <select
-                className="form-select form-select-sm bg-secondary bg-opacity-25 text-white border-secondary fw-bold"
-                style={{ color: "#ffffff" }}
+                className="form-select form-select-sm glass-input fw-bold"
                 value={estadoInicial}
                 onChange={(e) => setEstadoInicial(e.target.value)}
               >
-                <option value="confirmado" className="bg-dark text-white">Confirmado (Cocina / Preparación)</option>
-                <option value="en_preparacion" className="bg-dark text-white">En Preparación</option>
-                <option value="entregado" className="bg-dark text-white">Entregado Directamente (Venta Completa)</option>
+                <option value="confirmado">Confirmado (Cocina / Preparación)</option>
+                <option value="en_preparacion">En Preparación</option>
+                <option value="entregado">Entregado Directamente (Venta Completa)</option>
               </select>
             </div>
 
             {/* Resumen Final de Cobro */}
-            <div className="p-3 rounded bg-secondary bg-opacity-25 border border-gold mb-3">
-              <div className="d-flex justify-content-between small text-white mb-1">
-                <span className="text-white">Subtotal:</span>
-                <span className="text-white fw-bold">${subtotal.toFixed(2)}</span>
+            <div className="p-3 rounded bg-light border border-light mb-3">
+              <div className="d-flex justify-content-between small text-muted mb-1">
+                <span className="text-secondary">Subtotal:</span>
+                <span className="text-dark fw-bold">${subtotal.toFixed(2)}</span>
               </div>
-              <div className="d-flex justify-content-between small text-white mb-1">
-                <span className="text-white">IVA (15%):</span>
-                <span className="text-white fw-bold">${impuesto.toFixed(2)}</span>
+              <div className="d-flex justify-content-between small text-muted mb-1">
+                <span className="text-secondary">IVA (15%):</span>
+                <span className="text-dark fw-bold">${impuesto.toFixed(2)}</span>
               </div>
               {tipoEntrega === "delivery" && (
-                <div className="d-flex justify-content-between small text-white mb-1">
-                  <span className="text-white">Envío ({distanciaKm} km):</span>
-                  <span className="text-white fw-bold">${costoEnvio.toFixed(2)}</span>
+                <div className="d-flex justify-content-between small text-muted mb-1">
+                  <span className="text-secondary">Envío ({distanciaKm} km):</span>
+                  <span className="text-dark fw-bold">${costoEnvio.toFixed(2)}</span>
                 </div>
               )}
-              <div className="d-flex justify-content-between fs-5 fw-bold text-gold border-top border-secondary pt-2">
-                <span className="text-white">TOTAL A COBRAR:</span>
-                <span className="text-gold">${total.toFixed(2)}</span>
+              <div className="d-flex justify-content-between fs-5 fw-bold text-gold border-top border-light pt-2">
+                <span className="text-dark">TOTAL A COBRAR:</span>
+                <span className="text-gold fs-4">${total.toFixed(2)}</span>
               </div>
             </div>
 
