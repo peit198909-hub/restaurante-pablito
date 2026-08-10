@@ -18,6 +18,7 @@ import AdminPosView from "./components/admin/AdminPosView";
 import DeliveryView from "./components/DeliveryView";
 import { useOrderAbly } from "./hooks/useOrderAbly";
 import { playNotificationSound } from "./utils/soundUtils";
+import { apiFetch } from "./api/client";
 import { UtensilsCrossed, ShieldAlert, User, ShieldCheck, ShoppingBag, Package, TrendingUp, Truck } from "lucide-react";
 
 const FORMATO_ESTADO = {
