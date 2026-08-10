@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import Ably from "ably";
 
-const ABLY_KEY = import.meta.env.VITE_ABLY_API_KEY || "RL2lOg.7FTCLg:r8vCLHJFQ6-2mpcAcGLiUG7g5EjNMhe0YGplmlf9U94";
+const ABLY_KEY = import.meta.env.VITE_ABLY_API_KEY;
 
 /**
  * Custom Hook para conectarse a Ably Realtime y recibir notificaciones instantáneas de pedidos y delivery.
@@ -16,6 +16,11 @@ export function useOrderAbly(token, onOrderUpdate) {
   }, [onOrderUpdate]);
 
   useEffect(() => {
+    if (!ABLY_KEY) {
+      console.warn("⚠️ Advertencia: VITE_ABLY_API_KEY no está definida en las variables de entorno del frontend.");
+      return;
+    }
+
     let ablyClient = null;
 
     try {
@@ -51,5 +56,5 @@ export function useOrderAbly(token, onOrderUpdate) {
         }
       }
     };
-  }, [token]);
+  }, []);
 }

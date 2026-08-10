@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { apiFetch } from "../api/client";
 import { useCart } from "../context/CartContext";
-import { Search, ShoppingCart, Utensils, CheckCircle2, Tag } from "lucide-react";
+import Pagination from "./Pagination";
+import { Search, ShoppingCart, Utensils, Tag } from "lucide-react";
 
 export default function MenuView({ setView, addAlert }) {
   const [productos, setProductos] = useState([]);
@@ -11,13 +13,19 @@ export default function MenuView({ setView, addAlert }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Estados de paginación
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
   const { addToCart, totalItems } = useCart();
 
   useEffect(() => {
-    cargarDatos();
+    cargarDatos(1, limit);
   }, [categoriaSeleccionada]);
 
-  const cargarDatos = async () => {
+  const cargarDatos = async (targetPage = page, targetLimit = limit) => {
     setLoading(true);
     setError(null);
     try {
@@ -25,8 +33,8 @@ export default function MenuView({ setView, addAlert }) {
       const catRes = await apiFetch("/api/categorias");
       setCategorias(catRes.categorias || []);
 
-      // Cargar productos activos
-      let queryParams = [];
+      // Cargar productos activos con paginación
+      let queryParams = [`page=${targetPage}`, `limit=${targetLimit}`];
       if (categoriaSeleccionada) {
         queryParams.push(`categoria=${encodeURIComponent(categoriaSeleccionada)}`);
       }
@@ -34,9 +42,17 @@ export default function MenuView({ setView, addAlert }) {
         queryParams.push(`q=${encodeURIComponent(busqueda)}`);
       }
 
-      const queryString = queryParams.length > 0 ? `?${queryParams.join("&")}` : "";
+      const queryString = `?${queryParams.join("&")}`;
       const prodRes = await apiFetch(`/api/productos${queryString}`);
-      setProductos(prodRes.productos || []);
+      if (prodRes && prodRes.productos) {
+        setProductos(prodRes.productos || []);
+        setTotal(prodRes.total || 0);
+        setTotalPages(prodRes.totalPages || 1);
+      } else {
+        setProductos(Array.isArray(prodRes) ? prodRes : []);
+        setTotal(Array.isArray(prodRes) ? prodRes.length : 0);
+        setTotalPages(1);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -46,87 +62,70 @@ export default function MenuView({ setView, addAlert }) {
 
   const handleBuscar = (e) => {
     e.preventDefault();
-    cargarDatos();
+    setPage(1);
+    cargarDatos(1, limit);
   };
 
   const handleAgregarItem = (producto) => {
-    const stockMax = producto.stock !== undefined ? parseInt(producto.stock, 10) : 50;
-    if (stockMax <= 0) {
-      if (addAlert) addAlert(`El producto "${producto.nombre}" está agotado.`, "danger");
-      return;
-    }
-
-    const exito = addToCart(producto, 1);
-    if (!exito) {
-      if (addAlert) addAlert(`Límite alcanzado: solo hay ${stockMax} unidades disponibles de "${producto.nombre}".`, "warning");
-    } else {
-      if (addAlert) addAlert(`"${producto.nombre}" agregado al carrito`, "success");
+    addToCart(producto, 1);
+    if (addAlert) {
+      addAlert(`¡${producto.nombre} agregado al carrito!`, "success");
     }
   };
 
   return (
     <div className="container py-4 fade-in-up">
-      {/* Encabezado del Menú */}
-      <div className="text-center mb-5">
-        <div className="d-inline-flex align-items-center justify-content-center p-3 rounded-circle bg-gold-subtle text-gold mb-3">
-          <Utensils size={36} />
+      {/* Filtros de Categorías y Búsqueda */}
+      <div className="row g-3 mb-4 align-items-center">
+        <div className="col-lg-8">
+          <div className="d-flex flex-wrap gap-2">
+            <button
+              className={`btn btn-sm ${
+                categoriaSeleccionada === "" ? "btn-gold" : "btn-outline-gold"
+              }`}
+              onClick={() => setCategoriaSeleccionada("")}
+            >
+              Todas las categorías
+            </button>
+            {categorias.map((cat) => (
+              <button
+                key={cat.id}
+                className={`btn btn-sm ${
+                  categoriaSeleccionada === cat.nombre ? "btn-gold" : "btn-outline-gold"
+                }`}
+                onClick={() => setCategoriaSeleccionada(cat.nombre)}
+              >
+                {cat.nombre}
+              </button>
+            ))}
+          </div>
         </div>
-        <h1 className="hero-title text-gold">Nuestro Menú Delicioso</h1>
-        <p className="hero-subtitle text-muted">
-          Explora la variedad gastronómica preparada al instante para ti.
-        </p>
-      </div>
 
-      {/* Barra de Filtros y Búsqueda */}
-      <div className="glass-card p-4 mb-4">
-        <form onSubmit={handleBuscar} className="row g-3 align-items-center mb-3">
-          <div className="col-md-8 col-lg-9">
+        <div className="col-lg-4">
+          <form onSubmit={handleBuscar} className="d-flex gap-2">
             <div className="input-group">
-              <span className="input-group-text glass-input border-end-0 text-gold">
-                <Search size={18} />
+              <span className="input-group-text glass-input border-end-0">
+                <Search size={18} className="text-gold" />
               </span>
               <input
                 type="text"
                 className="form-control glass-input border-start-0"
-                placeholder="Buscar por plato, postre, bebida..."
+                placeholder="Buscar plato..."
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
               />
             </div>
-          </div>
-          <div className="col-md-4 col-lg-3">
-            <button type="submit" className="btn btn-gold w-100 py-2">
+            <button type="submit" className="btn btn-gold px-3">
               Buscar
             </button>
-          </div>
-        </form>
-
-        {/* Botones de Categorías */}
-        <div className="d-flex align-items-center gap-2 overflow-auto py-2">
-          <button
-            className={`btn btn-sm ${categoriaSeleccionada === "" ? "btn-gold" : "btn-outline-gold"}`}
-            onClick={() => setCategoriaSeleccionada("")}
-          >
-            Todas las Categorías
-          </button>
-          {categorias.map((cat) => (
-            <button
-              key={cat.id || cat.nombre}
-              className={`btn btn-sm ${categoriaSeleccionada === cat.nombre ? "btn-gold" : "btn-outline-gold"}`}
-              onClick={() => setCategoriaSeleccionada(cat.nombre)}
-            >
-              {cat.nombre}
-            </button>
-          ))}
+          </form>
         </div>
       </div>
 
-      {/* Spinner de carga o Error */}
+      {/* Catálogo de Productos */}
       {loading ? (
         <div className="text-center py-5">
-          <div className="spinner-border text-gold" role="status">
-            <span className="visually-hidden">Cargando menú...</span>
-          </div>
+          <div className="spinner-border text-gold" role="status"></div>
           <p className="text-gold mt-3">Cargando nuestro menú exquisito...</p>
         </div>
       ) : error ? (
@@ -160,6 +159,7 @@ export default function MenuView({ setView, addAlert }) {
                       <Utensils size={48} opacity={0.4} />
                     </div>
                   )}
+
                   <span className="badge bg-dark border border-gold text-gold position-absolute top-0 end-0 m-3 px-3 py-2">
                     <Tag size={12} className="me-1" />
                     {producto.categoria}
@@ -196,7 +196,7 @@ export default function MenuView({ setView, addAlert }) {
                     </div>
 
                     <button
-                      className={`btn d-flex align-items-center gap-2 py-2 px-3 ${
+                      className={`btn d-flex align-items-center gap-2 py-2 px-3 fw-bold rounded-pill ${
                         (producto.stock !== undefined ? producto.stock : 50) <= 0
                           ? "btn-secondary opacity-50 cursor-not-allowed"
                           : "btn-gold"
@@ -215,21 +215,50 @@ export default function MenuView({ setView, addAlert }) {
         </div>
       )}
 
-      {/* Botón flotante para ver carrito si hay items */}
-      {totalItems > 0 && (
-        <div className="position-fixed bottom-0 end-0 m-4 z-3">
-          <button
-            className="btn btn-gold shadow-lg d-flex align-items-center gap-2 py-3 px-4 rounded-pill border border-dark"
-            onClick={() => setView("carrito")}
+      {/* Componente de Paginación para el Menú */}
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        total={total}
+        limit={limit}
+        onPageChange={(nuevaPagina) => {
+          setPage(nuevaPagina);
+          cargarDatos(nuevaPagina, limit);
+        }}
+        onLimitChange={(nuevoLimite) => {
+          setLimit(nuevoLimite);
+          setPage(1);
+          cargarDatos(1, nuevoLimite);
+        }}
+      />
+
+      {/* Botón flotante para ver carrito que SIGUE al usuario fijamente en el viewport mediante createPortal */}
+      {totalItems > 0 &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              bottom: "28px",
+              right: "28px",
+              zIndex: 1080,
+            }}
           >
-            <ShoppingCart size={22} />
-            <span className="fw-bold">Ver Mi Carrito</span>
-            <span className="badge bg-dark text-gold rounded-circle px-2 py-1 fs-6 ms-1">
-              {totalItems}
-            </span>
-          </button>
-        </div>
-      )}
+            <button
+              className="btn btn-gold shadow-lg d-flex align-items-center gap-2 py-3 px-4 rounded-pill border border-dark hover-scale"
+              onClick={() => setView("carrito")}
+              style={{
+                boxShadow: "0 10px 25px -5px rgba(224, 86, 36, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.3)",
+              }}
+            >
+              <ShoppingCart size={22} />
+              <span className="fw-bold fs-6">Ver Mi Carrito</span>
+              <span className="badge bg-dark text-gold rounded-circle px-2 py-1 fs-6 ms-1">
+                {totalItems}
+              </span>
+            </button>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

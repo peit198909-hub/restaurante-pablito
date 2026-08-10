@@ -51,15 +51,12 @@ export function CartProvider({ children }) {
   };
 
   const updateQuantity = (productoId, nuevaCantidad) => {
-    if (nuevaCantidad <= 0) {
-      removeFromCart(productoId);
-      return;
-    }
+    const cantidadFinal = Math.max(1, nuevaCantidad);
     setCart((prevCart) =>
       prevCart.map((item) => {
         if (item.producto.id === productoId) {
           const stockMax = item.producto.stock !== undefined ? parseInt(item.producto.stock, 10) : 50;
-          return { ...item, cantidad: Math.min(stockMax, nuevaCantidad) };
+          return { ...item, cantidad: Math.min(stockMax, cantidadFinal) };
         }
         return item;
       })

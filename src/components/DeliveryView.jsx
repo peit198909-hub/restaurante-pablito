@@ -23,6 +23,8 @@ import {
 
 export default function DeliveryView({ usuario, addAlert }) {
   const [entregaActiva, setEntregaActiva] = useState(null);
+  const [entregasLista, setEntregasLista] = useState([]);
+  const [selectedEntregaId, setSelectedEntregaId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -36,20 +38,15 @@ export default function DeliveryView({ usuario, addAlert }) {
   useEffect(() => {
     cargarEntregaActiva();
 
-    // SSE listener para actualizaciones instantáneas en tiempo real
-    const handleSSEUpdate = (e) => {
-      const { repartidor_id, pedido_id } = e.detail || {};
-      if (!repartidor_id || Number(repartidor_id) === Number(usuario?.id)) {
-        cargarEntregaActiva(true);
-      }
+    // Listener de tiempo real para sincronización instantánea de entregas asignadas
+    const handleRealtimeUpdate = () => {
+      cargarEntregaActiva(true);
     };
 
-    window.addEventListener("order_status_update", handleSSEUpdate);
-    window.addEventListener("sse_order_update", handleSSEUpdate);
+    window.addEventListener("order_status_update", handleRealtimeUpdate);
 
     return () => {
-      window.removeEventListener("order_status_update", handleSSEUpdate);
-      window.removeEventListener("sse_order_update", handleSSEUpdate);
+      window.removeEventListener("order_status_update", handleRealtimeUpdate);
     };
   }, [usuario]);
 
@@ -58,7 +55,21 @@ export default function DeliveryView({ usuario, addAlert }) {
     setError(null);
     try {
       const res = await apiFetch("/api/pedidos/repartidor/activo");
-      setEntregaActiva(res.entrega || null);
+      const data = res.entrega || null;
+      if (data && data.entregas && data.entregas.length > 0) {
+        setEntregasLista(data.entregas);
+        setSelectedEntregaId((prev) => {
+          const existe = data.entregas.some((e) => Number(e.pedido.id) === Number(prev));
+          return existe ? prev : data.entregas[0].pedido.id;
+        });
+      } else if (data && data.pedido) {
+        setEntregasLista([data]);
+        setSelectedEntregaId(data.pedido.id);
+      } else {
+        setEntregasLista([]);
+        setSelectedEntregaId(null);
+      }
+      setEntregaActiva(data);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -78,15 +89,19 @@ export default function DeliveryView({ usuario, addAlert }) {
     }
   };
 
+  const currentObj = entregasLista.find((e) => Number(e.pedido.id) === Number(selectedEntregaId)) || entregasLista[0] || entregaActiva;
+  const p = currentObj?.pedido;
+  const items = currentObj?.items || [];
+
   const handleCambiarEstado = async (nuevoEstado) => {
-    if (!entregaActiva?.pedido?.id) return;
+    if (!p?.id) return;
 
     setSubmitting(true);
     try {
-      const res = await apiFetch("/api/pedidos/repartidor/estado", {
+      await apiFetch("/api/pedidos/repartidor/estado", {
         method: "PATCH",
         body: {
-          pedido_id: entregaActiva.pedido.id,
+          pedido_id: p.id,
           estado: nuevoEstado,
         },
       });
@@ -95,11 +110,11 @@ export default function DeliveryView({ usuario, addAlert }) {
 
       if (nuevoEstado === "entregado") {
         if (addAlert) {
-          addAlert(`¡Pedido #${entregaActiva.pedido.id} entregado con éxito! Buscando nuevo pedido...`, "success");
+          addAlert(`¡Pedido #${p.id} entregado con éxito! Buscando nuevo pedido...`, "success");
         }
       } else if (nuevoEstado === "en_camino") {
         if (addAlert) {
-          addAlert(`Has iniciado la ruta para el Pedido #${entregaActiva.pedido.id}`, "info");
+          addAlert(`Has iniciado la ruta para el Pedido #${p.id}`, "info");
         }
       }
 
@@ -110,9 +125,6 @@ export default function DeliveryView({ usuario, addAlert }) {
       setSubmitting(false);
     }
   };
-
-  const p = entregaActiva?.pedido;
-  const items = entregaActiva?.items || [];
 
   return (
     <div className="container py-4 fade-in-up">
@@ -213,8 +225,29 @@ export default function DeliveryView({ usuario, addAlert }) {
           </div>
         </div>
       ) : (
-        /* Vista de la Entrega Activa Asignada */
-        <div className="row g-4">
+        /* Vista de las Entregas Activas Asignadas */
+        <>
+          {entregasLista.length > 1 && (
+            <div className="glass-card p-3 mb-4 d-flex align-items-center gap-2 overflow-auto shadow-sm">
+              <span className="text-gold extra-small fw-bold shrink-0 d-flex align-items-center gap-1">
+                <Truck size={16} /> Entregas en Ruta ({entregasLista.length}):
+              </span>
+              {entregasLista.map((item) => (
+                <button
+                  key={item.pedido.id}
+                  type="button"
+                  className={`btn btn-sm ${
+                    Number(item.pedido.id) === Number(selectedEntregaId) ? "btn-gold fw-bold shadow-sm" : "btn-outline-gold"
+                  } shrink-0`}
+                  onClick={() => setSelectedEntregaId(item.pedido.id)}
+                >
+                  #{item.pedido.id} — {item.pedido.estado === "en_camino" ? "En Camino 🛵" : "Listo 📦"}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="row g-4">
           <div className="col-lg-7">
             <div className="glass-card p-4 h-100 border-gold border-2">
               <div className="d-flex align-items-center justify-content-between pb-3 border-bottom border-glass mb-4 flex-wrap gap-2">
@@ -258,24 +291,14 @@ export default function DeliveryView({ usuario, addAlert }) {
                     <Navigation size={14} /> Abrir en Google Maps / GPS ↗
                   </a>
 
-                  {/* Botón para llamar o WhatsApp */}
+                  {/* Botón para llamar */}
                   {p.telefono_contacto && (
-                    <>
-                      <a
-                        href={`tel:${p.telefono_contacto}`}
-                        className="btn btn-sm btn-outline-gold d-inline-flex align-items-center gap-1"
-                      >
-                        <Phone size={14} /> Llamar ({p.telefono_contacto})
-                      </a>
-                      <a
-                        href={`https://wa.me/${p.telefono_contacto.replace(/\D/g, "")}?text=${encodeURIComponent(`Hola ${p.cliente_nombre}, soy tu repartidor de Restaurante Pablito. Voy en camino con tu pedido #${p.id}.`)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn btn-sm btn-success text-white d-inline-flex align-items-center gap-1"
-                      >
-                        <MessageSquare size={14} /> WhatsApp
-                      </a>
-                    </>
+                    <a
+                      href={`tel:${p.telefono_contacto}`}
+                      className="btn btn-sm btn-outline-gold d-inline-flex align-items-center gap-1"
+                    >
+                      <Phone size={14} /> Llamar ({p.telefono_contacto})
+                    </a>
                   )}
                 </div>
 
@@ -337,74 +360,73 @@ export default function DeliveryView({ usuario, addAlert }) {
                   </div>
                 )}
               </div>
+                <div className="d-grid gap-2 mt-4">
+                  {p.estado !== "en_camino" && (
+                    <button
+                      type="button"
+                      className="btn btn-gold py-3 fw-bold fs-6 d-flex align-items-center justify-content-center gap-2 shadow-lg"
+                      onClick={() => handleCambiarEstado("en_camino")}
+                      disabled={submitting}
+                    >
+                      <Truck size={20} />
+                      {submitting ? "Actualizando..." : "🛵 Iniciar Ruta (Poner 'En Camino')"}
+                    </button>
+                  )}
 
-              {/* Botones de Acción de la Entrega */}
-              <div className="d-grid gap-2">
-                {p.estado !== "en_camino" && (
                   <button
                     type="button"
-                    className="btn btn-gold py-3 fw-bold fs-6 d-flex align-items-center justify-content-center gap-2 shadow-lg"
-                    onClick={() => handleCambiarEstado("en_camino")}
+                    className="btn btn-success py-3 text-white fw-bold fs-6 d-flex align-items-center justify-content-center gap-2 shadow-lg"
+                    onClick={() => handleCambiarEstado("entregado")}
                     disabled={submitting}
                   >
-                    <Truck size={20} />
-                    {submitting ? "Actualizando..." : "🛵 Iniciar Ruta (Poner 'En Camino')"}
+                    <CheckCircle2 size={22} />
+                    {submitting ? "Completando..." : "✅ Marcar Como Entregado"}
                   </button>
-                )}
-
-                <button
-                  type="button"
-                  className="btn btn-success py-3 text-white fw-bold fs-6 d-flex align-items-center justify-content-center gap-2 shadow-lg"
-                  onClick={() => handleCambiarEstado("entregado")}
-                  disabled={submitting}
-                >
-                  <CheckCircle2 size={22} />
-                  {submitting ? "Completando..." : "✅ Marcar Como Entregado"}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Lista de Productos a Entregar */}
-          <div className="col-lg-5">
-            <div className="glass-card p-4 h-100">
-              <h3 className="h5 text-gold mb-3 border-bottom border-glass pb-2 d-flex align-items-center gap-2">
-                <Utensils size={18} /> Productos del Pedido ({items.length})
-              </h3>
-
-              <div className="d-flex flex-column gap-2 mb-4">
-                {items.map((it) => (
-                  <div
-                    key={it.id}
-                    className="p-3 border border-glass rounded bg-white shadow-sm d-flex align-items-center justify-content-between gap-2"
-                  >
-                    <div className="d-flex align-items-center gap-2">
-                      <span className="badge bg-gold text-dark fw-bold fs-6">
-                        {it.cantidad}x
-                      </span>
-                      <div>
-                        <span className="fw-bold text-dark">{it.producto_nombre}</span>
-                        {it.notas && (
-                          <div className="extra-small text-muted fst-italic">
-                            "{it.notas}"
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <span className="fw-bold text-gold">${Number(it.subtotal).toFixed(2)}</span>
-                  </div>
-                ))}
-              </div>
-
-              {p.notas && (
-                <div className="alert alert-warning text-dark border-warning p-3 mb-0 shadow-sm">
-                  <strong className="d-block mb-1 text-gold">📝 Notas Especiales del Cliente:</strong>
-                  <span className="fst-italic">"{p.notas}"</span>
                 </div>
-              )}
+              </div>
+            </div>
+
+            {/* Lista de Productos a Entregar */}
+            <div className="col-lg-5">
+              <div className="glass-card p-4 h-100">
+                <h3 className="h5 text-gold mb-3 border-bottom border-glass pb-2 d-flex align-items-center gap-2">
+                  <Utensils size={18} /> Productos del Pedido ({items.length})
+                </h3>
+
+                <div className="d-flex flex-column gap-2 mb-4">
+                  {items.map((it) => (
+                    <div
+                      key={it.id}
+                      className="p-3 border border-glass rounded bg-white shadow-sm d-flex align-items-center justify-content-between gap-2"
+                    >
+                      <div className="d-flex align-items-center gap-2">
+                        <span className="badge bg-gold text-dark fw-bold fs-6">
+                          {it.cantidad}x
+                        </span>
+                        <div>
+                          <span className="fw-bold text-dark">{it.producto_nombre}</span>
+                          {it.notas && (
+                            <div className="extra-small text-muted fst-italic">
+                              "{it.notas}"
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <span className="fw-bold text-gold">${Number(it.subtotal).toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {p.notas && (
+                  <div className="alert alert-warning text-dark border-warning p-3 mb-0 shadow-sm">
+                    <strong className="d-block mb-1 text-gold">📝 Notas Especiales del Cliente:</strong>
+                    <span className="fst-italic">"{p.notas}"</span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Modal Lightbox para Comprobante */}

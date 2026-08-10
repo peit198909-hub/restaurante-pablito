@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { createPortal } from "react-dom";
-import { User, LogOut, ShieldAlert, UtensilsCrossed, Utensils, ShoppingCart, Package, Settings, ClipboardList, TrendingUp, Truck } from "lucide-react";
+import { User, LogOut, ShieldAlert, Utensils, ShoppingCart, Package, Settings, ClipboardList, Truck, Bell, Check, Trash2 } from "lucide-react";
 import { useCart } from "../context/CartContext";
-import NotificationBell from "./NotificationBell";
+import { formatTiempoRelativo } from "../utils/dateUtils";
 
 export default function Navbar({
   usuario,
@@ -10,17 +10,20 @@ export default function Navbar({
   setView,
   onLogout,
   notifications = [],
-  onMarkAsRead,
   onMarkAllAsRead,
-  onClearAll,
+  onClearNotifications,
   onSelectNotification,
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const { totalItems } = useCart();
+
+  const unreadCount = notifications.filter((n) => !n.leido).length;
 
   const handleNavigation = (targetView) => {
     setView(targetView);
     setIsOpen(false);
+    setShowNotifDropdown(false);
   };
 
   return createPortal(
@@ -159,6 +162,22 @@ export default function Navbar({
                   <>
                     <li className="nav-item">
                       <a
+                        className={`nav-link nav-link-custom d-flex align-items-center gap-1 text-gold fw-bold ${
+                          currentView === "admin-pos" ? "active" : ""
+                        }`}
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleNavigation("admin-pos");
+                        }}
+                      >
+                        <ShoppingCart size={16} />
+                        Venta Directa (POS)
+                      </a>
+                    </li>
+
+                    <li className="nav-item">
+                      <a
                         className={`nav-link nav-link-custom d-flex align-items-center gap-1 ${
                           currentView === "admin-productos" ? "active" : ""
                         }`}
@@ -223,15 +242,122 @@ export default function Navbar({
                   </>
                 )}
 
-                {/* Campana de Notificaciones Realtime */}
-                <li className="nav-item d-flex align-items-center px-2">
-                  <NotificationBell
-                    notifications={notifications}
-                    onMarkAsRead={onMarkAsRead}
-                    onMarkAllAsRead={onMarkAllAsRead}
-                    onClearAll={onClearAll}
-                    onSelectNotification={onSelectNotification}
-                  />
+                {/* Campanita de Notificaciones */}
+                <li className="nav-item dropdown position-relative mx-lg-1">
+                  <button
+                    type="button"
+                    className="nav-link nav-link-custom btn btn-link p-2 border-0 d-flex align-items-center position-relative text-gold"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setShowNotifDropdown(!showNotifDropdown);
+                    }}
+                    title="Notificaciones en tiempo real"
+                    style={{ cursor: "pointer" }}
+                  >
+                    <Bell size={18} className={unreadCount > 0 ? "text-gold" : "text-light"} />
+                    {unreadCount > 0 && (
+                      <span
+                        className="badge bg-danger rounded-circle position-absolute"
+                        style={{
+                          top: "2px",
+                          right: "2px",
+                          fontSize: "0.6rem",
+                          padding: "0.25em 0.4em",
+                          border: "1.5px solid #2a221f",
+                        }}
+                      >
+                        {unreadCount > 9 ? "9+" : unreadCount}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Dropdown flotante de Notificaciones */}
+                  {showNotifDropdown && (
+                    <div
+                      className="dropdown-menu show p-0 shadow-lg border-glass rounded-3 overflow-hidden position-absolute end-0 mt-2"
+                      style={{
+                        width: "340px",
+                        maxWidth: "92vw",
+                        backgroundColor: "#ffffff",
+                        zIndex: 1090,
+                      }}
+                    >
+                      <div className="p-3 bg-light border-bottom border-glass d-flex align-items-center justify-content-between">
+                        <div className="d-flex align-items-center gap-2">
+                          <Bell size={18} className="text-gold" />
+                          <span className="fw-bold text-dark fs-6">Notificaciones</span>
+                          {unreadCount > 0 && (
+                            <span className="badge bg-gold text-dark rounded-pill extra-small fw-bold">
+                              {unreadCount} nuevas
+                            </span>
+                          )}
+                        </div>
+                        <div className="d-flex align-items-center gap-1">
+                          {notifications.length > 0 && (
+                            <>
+                              <button
+                                type="button"
+                                className="btn btn-sm text-gold p-1 extra-small fw-bold border-0 d-flex align-items-center gap-1"
+                                onClick={onMarkAllAsRead}
+                                title="Marcar todas como leídas"
+                              >
+                                <Check size={14} /> Leídas
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-sm text-muted p-1 extra-small border-0 d-flex align-items-center"
+                                onClick={onClearNotifications}
+                                title="Limpiar historial"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </>
+                          )}
+                          <button
+                            type="button"
+                            className="btn-close ms-1"
+                            style={{ fontSize: "0.75rem" }}
+                            onClick={() => setShowNotifDropdown(false)}
+                          ></button>
+                        </div>
+                      </div>
+
+                      <div className="notif-list" style={{ maxHeight: "360px", overflowY: "auto" }}>
+                        {notifications.length === 0 ? (
+                          <div className="p-4 text-center text-muted">
+                            <Bell size={32} className="text-gold opacity-50 mb-2" />
+                            <p className="extra-small mb-0">No tienes notificaciones por el momento.</p>
+                          </div>
+                        ) : (
+                          notifications.map((n) => (
+                            <div
+                              key={n.id}
+                              className={`p-3 border-bottom border-light transition-all ${
+                                !n.leido ? "bg-warning-subtle bg-opacity-25" : "bg-white"
+                              }`}
+                              style={{ cursor: "pointer" }}
+                              onClick={() => {
+                                if (onSelectNotification) onSelectNotification(n);
+                                setShowNotifDropdown(false);
+                              }}
+                            >
+                              <div className="d-flex align-items-start justify-content-between gap-2 mb-1">
+                                <span className={`badge ${n.badgeColor || "bg-gold text-dark"} extra-small fw-bold`}>
+                                  {n.titulo}
+                                </span>
+                                <span className="extra-small text-muted" style={{ fontSize: "0.7rem" }}>
+                                  {formatTiempoRelativo(n.timestamp)}
+                                </span>
+                              </div>
+                              <p className="extra-small text-dark mb-0 fw-medium" style={{ lineHeight: "1.35" }}>
+                                {n.mensaje}
+                              </p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </li>
 
                 {/* Perfil */}

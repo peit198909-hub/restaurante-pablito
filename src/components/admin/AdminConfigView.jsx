@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { apiFetch } from "../../api/client";
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import {
   Settings,
   Clock,
@@ -13,7 +16,40 @@ import {
   Loader2,
   Calendar,
   Compass,
+  Navigation,
 } from "lucide-react";
+
+// Icono personalizado para el pin del restaurante en el mapa
+const customIcon = new L.Icon({
+  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
+// Componente para re-centrar el mapa al cambiar coordenadas
+function MapRecenter({ center }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center && center[0] && center[1] && !isNaN(center[0]) && !isNaN(center[1])) {
+      map.setView(center, 16, { animate: true });
+    }
+  }, [center, map]);
+  return null;
+}
+
+// Componente para escuchar clics directos en el mapa
+function MapClickListener({ onMapClick }) {
+  useMapEvents({
+    click(e) {
+      onMapClick([e.latlng.lat, e.latlng.lng]);
+    },
+  });
+  return null;
+}
 
 export default function AdminConfigView({ addAlert }) {
   const [config, setConfig] = useState(null);
@@ -48,11 +84,11 @@ export default function AdminConfigView({ addAlert }) {
         setHoraCierre(c.hora_cierre || "22:00");
         setDiasAtencion(c.dias_atencion || "Lunes a Domingo");
         setAbiertoManual(c.abierto_manual === 1);
-        setCostoBaseEnvio(c.costo_base_envio ?? 1.50);
-        setPrecioPorKm(c.precio_por_km ?? 0.50);
-        setDistanciaMaximaKm(c.distancia_maxima_km ?? 15.0);
-        setLatitudRestaurante(c.latitud_restaurante ?? -0.180653);
-        setLongitudRestaurante(c.longitud_restaurante ?? -78.467838);
+        setCostoBaseEnvio(c.costo_base_envio !== undefined ? c.costo_base_envio : "");
+        setPrecioPorKm(c.precio_por_km !== undefined ? c.precio_por_km : "");
+        setDistanciaMaximaKm(c.distancia_maxima_km !== undefined ? c.distancia_maxima_km : "");
+        setLatitudRestaurante(c.latitud_restaurante !== undefined ? c.latitud_restaurante : "");
+        setLongitudRestaurante(c.longitud_restaurante !== undefined ? c.longitud_restaurante : "");
       }
     } catch (err) {
       if (addAlert) addAlert("Error al cargar la configuración: " + err.message, "danger");
@@ -299,13 +335,37 @@ export default function AdminConfigView({ addAlert }) {
                 </div>
               </div>
 
-              {/* Coordenadas GPS del Local */}
+              {/* Coordenadas GPS del Local y Mapa de Google Maps */}
               <div className="mt-4 pt-3 border-top border-glass">
-                <label className="form-label text-gold small fw-bold mb-2 d-flex align-items-center gap-1">
-                  <MapPin size={16} />
-                  Coordenadas GPS del Restaurante (Punto de Origen)
-                </label>
-                <div className="row g-2">
+                <div className="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+                  <label className="form-label text-gold small fw-bold mb-0 d-flex align-items-center gap-1">
+                    <MapPin size={16} />
+                    Coordenadas GPS del Restaurante (Punto de Origen)
+                  </label>
+
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-outline-gold d-inline-flex align-items-center gap-1 extra-small"
+                    onClick={() => {
+                      if ("geolocation" in navigator) {
+                        navigator.geolocation.getCurrentPosition(
+                          (pos) => {
+                            setLatitudRestaurante(pos.coords.latitude.toFixed(6));
+                            setLongitudRestaurante(pos.coords.longitude.toFixed(6));
+                            if (addAlert) addAlert("Ubicación GPS capturada con éxito", "success");
+                          },
+                          (err) => {
+                            if (addAlert) addAlert("Error capturando GPS: " + err.message, "danger");
+                          }
+                        );
+                      }
+                    }}
+                  >
+                    <Compass size={14} /> Capturar GPS Actual
+                  </button>
+                </div>
+
+                <div className="row g-2 mb-3">
                   <div className="col-6">
                     <span className="extra-small text-muted mb-1 d-block">Latitud</span>
                     <input
@@ -329,8 +389,59 @@ export default function AdminConfigView({ addAlert }) {
                     />
                   </div>
                 </div>
+
+                {/* Mapa Interactivo Seleccionable (Leaflet / OpenStreetMap) */}
+                <div className="mt-3 rounded overflow-hidden border border-gold shadow-sm bg-dark">
+                  <div className="p-2 bg-dark bg-opacity-75 border-bottom border-glass d-flex align-items-center justify-content-between flex-wrap gap-2">
+                    <span className="extra-small text-gold fw-bold d-flex align-items-center gap-1">
+                      🗺️ Mapa Interactivo del Restaurante:
+                    </span>
+                    <span className="extra-small text-muted">
+                      💡 Haz clic en el mapa o arrastra el pin rojo para marcar la ubicación exacta
+                    </span>
+                  </div>
+
+                  <div style={{ height: "300px", width: "100%", position: "relative" }}>
+                    {!isNaN(parseFloat(latitudRestaurante)) && !isNaN(parseFloat(longitudRestaurante)) && (
+                      <MapContainer
+                        center={[parseFloat(latitudRestaurante), parseFloat(longitudRestaurante)]}
+                        zoom={16}
+                        scrollWheelZoom={true}
+                        style={{ height: "100%", width: "100%" }}
+                      >
+                        <TileLayer
+                          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        />
+                        <MapRecenter center={[parseFloat(latitudRestaurante), parseFloat(longitudRestaurante)]} />
+                        <MapClickListener
+                          onMapClick={([lat, lng]) => {
+                            setLatitudRestaurante(lat.toFixed(6));
+                            setLongitudRestaurante(lng.toFixed(6));
+                            if (addAlert) addAlert("Ubicación del restaurante asignada en el mapa", "info");
+                          }}
+                        />
+                        <Marker
+                          position={[parseFloat(latitudRestaurante), parseFloat(longitudRestaurante)]}
+                          icon={customIcon}
+                          draggable={true}
+                          eventHandlers={{
+                            dragend: (e) => {
+                              const marker = e.target;
+                              const position = marker.getLatLng();
+                              setLatitudRestaurante(position.lat.toFixed(6));
+                              setLongitudRestaurante(position.lng.toFixed(6));
+                              if (addAlert) addAlert("Marcador ajustado correctamente", "info");
+                            },
+                          }}
+                        />
+                      </MapContainer>
+                    )}
+                  </div>
+                </div>
+
                 <small className="text-muted extra-small mt-2 d-block">
-                  Estas coordenadas se utilizan para calcular automáticamente la distancia exacta en km hacia la casa del cliente usando el mapa.
+                  Haz clic directo o arrastra el marcador en el mapa para ajustar la posición exacta del restaurante.
                 </small>
               </div>
 

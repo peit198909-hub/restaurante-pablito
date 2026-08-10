@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { User, Mail, Lock, Phone, MapPin, ShieldAlert, UserCheck } from "lucide-react";
+import { apiFetch } from "../api/client";
 
 // Componente administrativo exclusivo para crear nuevas cuentas de administradores
-export default function AdminCreateUser({ apiBaseUrl, token, addAlert }) {
+export default function AdminCreateUser({ token, addAlert }) {
   const [tipoRol, setTipoRol] = useState("repartidor");
   const [nombre, setNombre] = useState("");
   const [apellido, setApellido] = useState("");
@@ -37,22 +38,14 @@ export default function AdminCreateUser({ apiBaseUrl, token, addAlert }) {
       };
 
       const endpoint = tipoRol === "repartidor"
-        ? `${apiBaseUrl}/api/usuarios/repartidor/crear`
-        : `${apiBaseUrl}/api/usuarios/admin/crear`;
+        ? "/api/usuarios/repartidor/crear"
+        : "/api/usuarios/admin/crear";
 
-      const respuesta = await fetch(endpoint, {
+      const datos = await apiFetch(endpoint, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
+        token,
+        body: payload,
       });
-
-      const datos = await respuesta.json();
-      if (!respuesta.ok) {
-        throw new Error(datos.message || `Error al crear la cuenta de ${tipoRol}`);
-      }
 
       addAlert(`¡Cuenta de ${tipoRol === "repartidor" ? "Repartidor" : "Administrador"} ${datos.usuario.nombre} creada correctamente!`, "success");
       

@@ -7,17 +7,7 @@ import {
   Filter,
   Eye,
   RefreshCw,
-  Send,
-  UserCheck,
-  Plus,
-  Phone,
-  Truck,
-  Check,
-  X,
-  MessageSquare,
-  Sparkles,
   Image as ImageIcon,
-  ExternalLink,
   ZoomIn,
 } from "lucide-react";
 
@@ -38,22 +28,6 @@ export default function AdminOrdersView({ addAlert }) {
   const [selectedPedido, setSelectedPedido] = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
 
-  // Repartidores & Despacho por WhatsApp
-  const [repartidores, setRepartidores] = useState([]);
-  const [showDispatchModal, setShowDispatchModal] = useState(false);
-  const [pedidoParaDespacho, setPedidoParaDespacho] = useState(null);
-  const [selectedRepartidorId, setSelectedRepartidorId] = useState("");
-  const [loadingDespacho, setLoadingDespacho] = useState(false);
-
-  // Modal Gestión de Repartidores
-  const [showRepartidoresModal, setShowRepartidoresModal] = useState(false);
-  const [nuevoNombre, setNuevoNombre] = useState("");
-  const [nuevoApellido, setNuevoApellido] = useState("");
-  const [nuevoTelefono, setNuevoTelefono] = useState("");
-  const [nuevoVehiculo, setNuevoVehiculo] = useState("moto");
-  const [nuevaPlaca, setNuevaPlaca] = useState("");
-  const [guardandoRepartidor, setGuardandoRepartidor] = useState(false);
-
   const ESTADOS_DISPONIBLES = [
     { value: "pendiente", label: "Pendiente" },
     { value: "confirmado", label: "Confirmado" },
@@ -66,21 +40,14 @@ export default function AdminOrdersView({ addAlert }) {
 
   useEffect(() => {
     cargarPedidos(page, limit);
-    cargarRepartidores();
 
-    const handleSSEUpdate = (e) => {
+    const handleRealtimeUpdate = (e) => {
       const { pedido_id, estado } = e.detail || {};
 
-      setPedidos((prev) => {
-        const existe = prev.some((p) => Number(p.id) === Number(pedido_id));
-        if (existe) {
-          return prev.map((p) =>
-            Number(p.id) === Number(pedido_id) ? { ...p, estado: estado || p.estado } : p
-          );
-        }
-        return prev;
-      });
+      // Recargar automáticamente la grilla de pedidos en vivo
+      cargarPedidos(page, limit);
 
+      // Si la ventana de detalle está abierta, actualizar su estado en tiempo real
       setSelectedPedido((prev) => {
         if (prev && prev.pedido && Number(prev.pedido.id) === Number(pedido_id)) {
           return {
@@ -92,8 +59,8 @@ export default function AdminOrdersView({ addAlert }) {
       });
     };
 
-    window.addEventListener("sse_order_update", handleSSEUpdate);
-    return () => window.removeEventListener("sse_order_update", handleSSEUpdate);
+    window.addEventListener("order_status_update", handleRealtimeUpdate);
+    return () => window.removeEventListener("order_status_update", handleRealtimeUpdate);
   }, [page, limit, filtroEstado]);
 
   const cargarPedidos = async (pg = page, lm = limit) => {
@@ -122,20 +89,6 @@ export default function AdminOrdersView({ addAlert }) {
     }
   };
 
-  const cargarRepartidores = async () => {
-    try {
-      const res = await apiFetch("/api/repartidores");
-      if (res && res.repartidores) {
-        setRepartidores(res.repartidores);
-        if (res.repartidores.length > 0 && !selectedRepartidorId) {
-          setSelectedRepartidorId(res.repartidores[0].id);
-        }
-      }
-    } catch (err) {
-      console.warn("No se pudieron cargar repartidores:", err);
-    }
-  };
-
   const handleCambiarEstado = async (pedidoId, nuevoEstado) => {
     try {
       await apiFetch(`/api/pedidos/${pedidoId}/estado`, {
@@ -145,7 +98,9 @@ export default function AdminOrdersView({ addAlert }) {
       if (addAlert) {
         addAlert(`Estado del pedido #${pedidoId} cambiado a '${nuevoEstado}'`, "success");
       }
-      cargarPedidos();
+      // Cambiar automáticamente la pestaña/filtro activo al nuevo estado
+      setFiltroEstado(nuevoEstado);
+      setPage(1);
     } catch (err) {
       if (addAlert) addAlert(err.message, "danger");
     }
@@ -163,152 +118,16 @@ export default function AdminOrdersView({ addAlert }) {
     }
   };
 
-  // Abrir modal de despacho por WhatsApp
-  const handleAbrirDespachoWhatsApp = async (pedidoId) => {
-    setLoadingDespacho(true);
-    try {
-      const res = await apiFetch(`/api/pedidos/${pedidoId}`);
-      setPedidoParaDespacho(res);
-      setShowDispatchModal(true);
-      await cargarRepartidores();
-    } catch (err) {
-      if (addAlert) addAlert("Error cargando detalle para despacho: " + err.message, "danger");
-    } finally {
-      setLoadingDespacho(false);
-    }
-  };
-
-  // Generar texto estructurado para WhatsApp
-  const generarTextoWhatsApp = () => {
-    if (!pedidoParaDespacho || !pedidoParaDespacho.pedido) return "";
-
-    const { pedido, items } = pedidoParaDespacho;
-    const clienteNombre = `${pedido.cliente_nombre || ""} ${pedido.cliente_apellido || ""}`.trim();
-
-    let texto = `🛵 *NUEVA ASIGNACIÓN DE DELIVERY - RESTAURANTE PABLITO* 🛵\n`;
-    texto += `--------------------------------------------------\n`;
-    texto += `📦 *Pedido:* #${pedido.id}\n`;
-    texto += `👤 *Cliente:* ${clienteNombre}\n`;
-    texto += `📞 *Teléfono Cliente:* ${pedido.telefono_contacto || "N/A"}\n`;
-    texto += `📍 *Dirección Entrega:* ${pedido.direccion_entrega}\n`;
-    texto += `💳 *Método de Pago:* ${String(pedido.metodo_pago).toUpperCase()} ($${Number(pedido.total).toFixed(2)})\n`;
-    texto += `--------------------------------------------------\n`;
-    texto += `🍽️ *PRODUCTOS A ENTREGAR:*\n`;
-
-    if (items && items.length > 0) {
-      items.forEach((it) => {
-        texto += `• *${it.cantidad}x* ${it.producto_nombre} ($${Number(it.subtotal).toFixed(2)})\n`;
-        if (it.notas) texto += `   └ *Obs:* ${it.notas}\n`;
-      });
-    }
-
-    texto += `--------------------------------------------------\n`;
-    if (pedido.notas) {
-      texto += `📝 *Notas de Entrega del Cliente:*\n"${pedido.notas}"\n`;
-      texto += `--------------------------------------------------\n`;
-    }
-
-    texto += `🚀 ¡Favor confirmar al llegar al punto de entrega! ¡Buen viaje!`;
-    return texto;
-  };
-
-  // Enviar pedido por WhatsApp
-  const handleEnviarWhatsApp = async () => {
-    if (!selectedRepartidorId) {
-      if (addAlert) addAlert("Selecciona un repartidor disponible.", "warning");
-      return;
-    }
-
-    const repartidor = repartidores.find((r) => Number(r.id) === Number(selectedRepartidorId));
-    if (!repartidor) {
-      if (addAlert) addAlert("Repartidor no encontrado.", "danger");
-      return;
-    }
-
-    const mensaje = generarTextoWhatsApp();
-    const telLimpio = String(repartidor.telefono_whatsapp).replace(/\D/g, "");
-    const waUrl = `https://api.whatsapp.com/send?phone=${telLimpio}&text=${encodeURIComponent(mensaje)}`;
-
-    // Abrir WhatsApp Web/App
-    window.open(waUrl, "_blank");
-
-    // Cambiar estado a 'en_camino'
-    await handleCambiarEstado(pedidoParaDespacho.pedido.id, "en_camino");
-
-    if (addAlert) {
-      addAlert(
-        `Pedido #${pedidoParaDespacho.pedido.id} enviado por WhatsApp a ${repartidor.nombre} ${repartidor.apellido}`,
-        "success"
-      );
-    }
-
-    setShowDispatchModal(false);
-  };
-
-  // Guardar nuevo repartidor
-  const handleCrearRepartidor = async (e) => {
-    e.preventDefault();
-    if (!nuevoNombre || !nuevoApellido || !nuevoTelefono) {
-      if (addAlert) addAlert("Por favor llena los campos requeridos del repartidor.", "warning");
-      return;
-    }
-
-    setGuardandoRepartidor(true);
-    try {
-      await apiFetch("/api/repartidores", {
-        method: "POST",
-        body: {
-          nombre: nuevoNombre,
-          apellido: nuevoApellido,
-          telefono_whatsapp: nuevoTelefono,
-          tipo_vehiculo: nuevoVehiculo,
-          placa_vehiculo: nuevaPlaca,
-        },
-      });
-
-      if (addAlert) addAlert("¡Repartidor registrado con éxito!", "success");
-      setNuevoNombre("");
-      setNuevoApellido("");
-      setNuevoTelefono("");
-      setNuevaPlaca("");
-      await cargarRepartidores();
-    } catch (err) {
-      if (addAlert) addAlert("Error registrando repartidor: " + err.message, "danger");
-    } finally {
-      setGuardandoRepartidor(false);
-    }
-  };
-
-  // Alternar estado activo de repartidor
-  const handleToggleActivo = async (id, estadoActual) => {
-    try {
-      await apiFetch(`/api/repartidores/${id}/activo`, {
-        method: "PATCH",
-        body: { activo: !estadoActual },
-      });
-      cargarRepartidores();
-    } catch (err) {
-      if (addAlert) addAlert(err.message, "danger");
-    }
-  };
-
   return (
     <div className="container py-4 fade-in-up">
       <div className="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
         <div>
           <h1 className="hero-title text-gold h2 mb-1">Gestión de Pedidos</h1>
           <p className="hero-subtitle text-muted mb-0">
-            Control de preparación, despacho por WhatsApp y estado de entregas.
+            Control de preparación, estado de pedidos y entregas en tiempo real.
           </p>
         </div>
         <div className="d-flex gap-2">
-          <button
-            className="btn btn-outline-gold d-flex align-items-center gap-1 fw-medium"
-            onClick={() => setShowRepartidoresModal(true)}
-          >
-            <UserCheck size={16} />
-            Repartidores ({repartidores.filter((r) => r.activo).length})
-          </button>
           <button
             className="btn btn-gold d-flex align-items-center gap-1 fw-bold"
             onClick={() => cargarPedidos()}
@@ -422,19 +241,11 @@ export default function AdminOrdersView({ addAlert }) {
                     <td className="text-end">
                       <div className="d-flex justify-content-end gap-1">
                         <button
-                          className="btn btn-sm btn-success text-white px-2 py-1 d-flex align-items-center gap-1 shadow-sm"
-                          onClick={() => handleAbrirDespachoWhatsApp(ped.id)}
-                          title="Enviar a repartidor por WhatsApp"
-                        >
-                          <Send size={14} />
-                          <span className="d-none d-md-inline small">WhatsApp</span>
-                        </button>
-                        <button
                           className="btn btn-sm btn-outline-gold p-1 px-2"
                           onClick={() => handleVerDetalle(ped.id)}
                           title="Ver detalle del pedido"
                         >
-                          <Eye size={16} />
+                          <Eye size={16} /> Ver Detalle
                         </button>
                       </div>
                     </td>
@@ -462,7 +273,7 @@ export default function AdminOrdersView({ addAlert }) {
         </>
       )}
 
-      {/* Modal 1: Detalle Completo de Pedido */}
+      {/* Modal: Detalle del Pedido */}
       {selectedPedido &&
         createPortal(
           <div
@@ -602,291 +413,15 @@ export default function AdminOrdersView({ addAlert }) {
 
                   <div className="d-flex justify-content-between align-items-center pt-3 border-top border-glass">
                     <button
-                      className="btn btn-success text-white fw-bold d-flex align-items-center gap-2"
-                      onClick={() => {
-                        const pid = selectedPedido.pedido.id;
-                        setSelectedPedido(null);
-                        handleAbrirDespachoWhatsApp(pid);
-                      }}
+                      className="btn btn-outline-secondary"
+                      onClick={() => setSelectedPedido(null)}
                     >
-                      <Send size={18} />
-                      Despachar este Pedido por WhatsApp
+                      Cerrar
                     </button>
                     <div className="text-gold fs-5 fw-bold">
                       Total: ${Number(selectedPedido.pedido?.total).toFixed(2)}
                     </div>
                   </div>
-                </div>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
-
-      {/* Modal 2: Despacho por WhatsApp a Repartidor */}
-      {showDispatchModal && pedidoParaDespacho &&
-        createPortal(
-          <div
-            className="modal show d-block"
-            tabIndex="-1"
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              width: "100vw",
-              height: "100vh",
-              backgroundColor: "rgba(42, 34, 31, 0.8)",
-              backdropFilter: "blur(6px)",
-              zIndex: 1070,
-              overflowY: "auto",
-            }}
-            onClick={(e) => {
-              if (e.target === e.currentTarget) setShowDispatchModal(false);
-            }}
-          >
-            <div className="modal-dialog modal-dialog-centered modal-lg">
-              <div className="modal-content glass-card shadow-lg border-glass text-dark">
-                <div className="modal-header border-bottom border-glass p-3 bg-light">
-                  <h5 className="modal-title text-gold fw-bold fs-5 m-0 d-flex align-items-center gap-2">
-                    <Send size={20} className="text-success" />
-                    Despachar Pedido #{pedidoParaDespacho.pedido?.id} por WhatsApp
-                  </h5>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    onClick={() => setShowDispatchModal(false)}
-                  ></button>
-                </div>
-
-                <div className="modal-body p-4">
-                  {/* Selector de Repartidor */}
-                  <div className="mb-4">
-                    <label className="form-label text-gold fw-bold small mb-1">
-                      Seleccionar Repartidor / Motorizado *
-                    </label>
-                    {repartidores.filter((r) => r.activo).length === 0 ? (
-                      <div className="alert alert-warning py-2 small mb-0">
-                        No hay repartidores activos disponibles. Haz clic en "Gestionar Repartidores" para agregar uno.
-                      </div>
-                    ) : (
-                      <select
-                        className="form-select glass-input border-glass fw-bold"
-                        value={selectedRepartidorId}
-                        onChange={(e) => setSelectedRepartidorId(e.target.value)}
-                      >
-                        {repartidores
-                          .filter((r) => r.activo)
-                          .map((rep) => (
-                            <option key={rep.id} value={rep.id}>
-                              🛵 {rep.nombre} {rep.apellido} — {rep.tipo_vehiculo.toUpperCase()}{" "}
-                              {rep.placa_vehiculo ? `(${rep.placa_vehiculo})` : ""} — WhatsApp: +{rep.telefono_whatsapp}
-                            </option>
-                          ))}
-                      </select>
-                    )}
-                  </div>
-
-                  {/* Vista Previa del Mensaje WhatsApp */}
-                  <div className="mb-3">
-                    <label className="form-label text-gold fw-bold small mb-1 d-flex align-items-center gap-1">
-                      <MessageSquare size={16} /> Vista Previa del Mensaje a Enviar:
-                    </label>
-                    <textarea
-                      className="form-control glass-input text-dark font-monospace small"
-                      rows={10}
-                      readOnly
-                      value={generarTextoWhatsApp()}
-                      style={{ backgroundColor: "#f8f9fa", fontSize: "0.85rem", lineHeight: "1.4" }}
-                    />
-                  </div>
-                </div>
-
-                <div className="modal-footer border-top border-glass p-3 bg-light d-flex justify-content-between">
-                  <button
-                    type="button"
-                    className="btn btn-outline-secondary px-4"
-                    onClick={() => setShowDispatchModal(false)}
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-success text-white px-4 py-2 d-flex align-items-center gap-2 fw-bold shadow-sm"
-                    onClick={handleEnviarWhatsApp}
-                    disabled={repartidores.filter((r) => r.activo).length === 0}
-                  >
-                    <Send size={18} />
-                    Enviar a WhatsApp y poner 'En Camino'
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
-
-      {/* Modal 3: Gestión de Repartidores */}
-      {showRepartidoresModal &&
-        createPortal(
-          <div
-            className="modal show d-block"
-            tabIndex="-1"
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              width: "100vw",
-              height: "100vh",
-              backgroundColor: "rgba(42, 34, 31, 0.8)",
-              backdropFilter: "blur(6px)",
-              zIndex: 1070,
-              overflowY: "auto",
-            }}
-            onClick={(e) => {
-              if (e.target === e.currentTarget) setShowRepartidoresModal(false);
-            }}
-          >
-            <div className="modal-dialog modal-dialog-centered modal-lg">
-              <div className="modal-content glass-card shadow-lg border-glass text-dark">
-                <div className="modal-header border-bottom border-glass p-3 bg-light">
-                  <h5 className="modal-title text-gold fw-bold fs-5 m-0 d-flex align-items-center gap-2">
-                    <UserCheck size={22} className="text-gold" />
-                    Gestión de Repartidores y Motorizados
-                  </h5>
-                  <button
-                    type="button"
-                    className="btn-close"
-                    onClick={() => setShowRepartidoresModal(false)}
-                  ></button>
-                </div>
-
-                <div className="modal-body p-4">
-                  {/* Formulario Registro Nuevo Repartidor */}
-                  <form onSubmit={handleCrearRepartidor} className="mb-4 p-3 bg-light rounded border border-glass">
-                    <h6 className="text-gold fw-bold mb-3 d-flex align-items-center gap-1">
-                      <Plus size={18} /> Registrar Nuevo Repartidor
-                    </h6>
-                    <div className="row g-2">
-                      <div className="col-12 col-md-6">
-                        <input
-                          type="text"
-                          className="form-control glass-input"
-                          placeholder="Nombre *"
-                          value={nuevoNombre}
-                          onChange={(e) => setNuevoNombre(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="col-12 col-md-6">
-                        <input
-                          type="text"
-                          className="form-control glass-input"
-                          placeholder="Apellido *"
-                          value={nuevoApellido}
-                          onChange={(e) => setNuevoApellido(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="col-12 col-md-6">
-                        <input
-                          type="text"
-                          className="form-control glass-input"
-                          placeholder="WhatsApp Ej: 593991234567 *"
-                          value={nuevoTelefono}
-                          onChange={(e) => setNuevoTelefono(e.target.value)}
-                          required
-                        />
-                      </div>
-                      <div className="col-6 col-md-3">
-                        <select
-                          className="form-select glass-input"
-                          value={nuevoVehiculo}
-                          onChange={(e) => setNuevoVehiculo(e.target.value)}
-                        >
-                          <option value="moto">Moto 🛵</option>
-                          <option value="bicicleta">Bicicleta 🚲</option>
-                          <option value="auto">Auto 🚗</option>
-                          <option value="a_pie">A pie 🚶</option>
-                        </select>
-                      </div>
-                      <div className="col-6 col-md-3">
-                        <input
-                          type="text"
-                          className="form-control glass-input"
-                          placeholder="Placa (Opcional)"
-                          value={nuevaPlaca}
-                          onChange={(e) => setNuevaPlaca(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                    <div className="text-end mt-3">
-                      <button
-                        type="submit"
-                        className="btn btn-gold px-4 fw-bold shadow-sm"
-                        disabled={guardandoRepartidor}
-                      >
-                        {guardandoRepartidor ? "Guardando..." : "Guardar Repartidor"}
-                      </button>
-                    </div>
-                  </form>
-
-                  {/* Lista de Repartidores Existentes */}
-                  <h6 className="text-gold fw-bold mb-3">Repartidores Registrados ({repartidores.length}):</h6>
-                  <div className="table-responsive">
-                    <table className="table table-hover align-middle mb-0">
-                      <thead>
-                        <tr className="text-muted extra-small">
-                          <th>Repartidor</th>
-                          <th>WhatsApp</th>
-                          <th>Vehículo</th>
-                          <th>Estado</th>
-                          <th className="text-end">Acción</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {repartidores.map((rep) => (
-                          <tr key={rep.id}>
-                            <td className="fw-bold">
-                              {rep.nombre} {rep.apellido}
-                            </td>
-                            <td className="small">+{rep.telefono_whatsapp}</td>
-                            <td className="small text-uppercase fw-medium">
-                              {rep.tipo_vehiculo} {rep.placa_vehiculo ? `(${rep.placa_vehiculo})` : ""}
-                            </td>
-                            <td>
-                              <span
-                                className={`badge ${
-                                  rep.activo ? "bg-success text-white" : "bg-secondary text-white"
-                                }`}
-                              >
-                                {rep.activo ? "Disponible" : "Inactivo"}
-                              </span>
-                            </td>
-                            <td className="text-end">
-                              <button
-                                className={`btn btn-sm ${
-                                  rep.activo ? "btn-outline-danger" : "btn-outline-success"
-                                } py-1 px-2 extra-small fw-bold`}
-                                onClick={() => handleToggleActivo(rep.id, rep.activo)}
-                              >
-                                {rep.activo ? "Desactivar" : "Activar"}
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                <div className="modal-footer border-top border-glass p-3 bg-light">
-                  <button
-                    type="button"
-                    className="btn btn-outline-secondary px-4"
-                    onClick={() => setShowRepartidoresModal(false)}
-                  >
-                    Cerrar
-                  </button>
                 </div>
               </div>
             </div>

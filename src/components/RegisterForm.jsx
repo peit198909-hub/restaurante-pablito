@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { User, Mail, Lock, Phone, MapPin, UserPlus } from "lucide-react";
+import { apiFetch } from "../api/client";
 
 // Formulario de registro para nuevos clientes
-export default function RegisterForm({ apiBaseUrl, onLoginSuccess, addAlert, setView }) {
+export default function RegisterForm({ onLoginSuccess, addAlert, setView }) {
   const [nombre, setNombre] = useState("");
   const [apellido, setApellido] = useState("");
   const [correo, setCorreo] = useState("");
@@ -35,19 +36,10 @@ export default function RegisterForm({ apiBaseUrl, onLoginSuccess, addAlert, set
         direccion: direccion ? direccion : undefined,
       };
 
-      const respuesta = await fetch(`${apiBaseUrl}/api/usuarios/registro`, {
+      const datos = await apiFetch("/api/usuarios/registro", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+        body: payload,
       });
-
-      const datos = await respuesta.json();
-
-      if (!respuesta.ok) {
-        throw new Error(datos.message || "Error al registrarse");
-      }
 
       // Loguear automaticamente al usuario despues de registrarse
       onLoginSuccess(datos.token, datos.usuario);

@@ -125,9 +125,9 @@ export default function CartView({ usuario, setView, onSetCurrentOrderId, addAle
   const IVA_RATE = 0.15;
   const impuesto = Math.round(subtotal * IVA_RATE * 100) / 100;
 
-  const costoBase = config?.costo_base_envio ?? 1.50;
-  const precioKm = config?.precio_por_km ?? 0.50;
-  const maxKm = config?.distancia_maxima_km ?? 15.0;
+  const costoBase = config ? Number(config.costo_base_envio || 0) : 0;
+  const precioKm = config ? Number(config.precio_por_km || 0) : 0;
+  const maxKm = config ? Number(config.distancia_maxima_km || 0) : 0;
 
   const costoEnvio = tipoEntrega === "retiro"
     ? 0
@@ -300,8 +300,10 @@ export default function CartView({ usuario, setView, onSetCurrentOrderId, addAle
                     {/* Control de cantidad */}
                     <div className="d-flex align-items-center gap-2 border border-glass rounded px-2 py-1 bg-light">
                       <button
-                        className="btn btn-link text-gold p-0"
-                        onClick={() => updateQuantity(item.producto.id, item.cantidad - 1)}
+                        className={`btn btn-link p-0 ${item.cantidad <= 1 ? "text-muted opacity-50" : "text-gold"}`}
+                        onClick={() => updateQuantity(item.producto.id, Math.max(1, item.cantidad - 1))}
+                        disabled={item.cantidad <= 1}
+                        title={item.cantidad <= 1 ? "La cantidad mínima es 1. Para eliminar, usa el tacho de basura." : "Restar una unidad"}
                       >
                         <Minus size={14} />
                       </button>
@@ -634,8 +636,8 @@ export default function CartView({ usuario, setView, onSetCurrentOrderId, addAle
         onConfirmAddress={(loc) => {
           setDireccion(loc.direccion);
           if (loc.latitud && loc.longitud && config) {
-            const restLat = config.latitud_restaurante ?? -0.180653;
-            const restLon = config.longitud_restaurante ?? -78.467838;
+            const restLat = Number(config.latitud_restaurante);
+            const restLon = Number(config.longitud_restaurante);
             const dist = calcularDistanciaHaversine(restLat, restLon, loc.latitud, loc.longitud);
             if (dist > 0) {
               setDistanciaKm(Math.min(dist, maxKm));
