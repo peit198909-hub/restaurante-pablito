@@ -24,6 +24,13 @@ export default function AdminDashboardView({ setView, addAlert }) {
 
   useEffect(() => {
     cargarDashboard();
+
+    const handleRealtimeUpdate = () => {
+      cargarDashboard();
+    };
+
+    window.addEventListener("order_status_update", handleRealtimeUpdate);
+    return () => window.removeEventListener("order_status_update", handleRealtimeUpdate);
   }, []);
 
   if (loading) {
@@ -232,7 +239,7 @@ export default function AdminDashboardView({ setView, addAlert }) {
             <div className="mt-4 p-3 bg-dark bg-opacity-50 rounded border border-glass text-gold small">
               <strong>💡 Tip Profesional:</strong>
               <p className="mb-0 text-muted extra-small mt-1">
-                Puedes despachar directamente los pedidos por WhatsApp a los motorizados registrados desde la vista de Gestión de Pedidos.
+                Los usuarios con rol 'Repartidor' pueden iniciar sesión en la web para visualizar y gestionar sus entregas asignadas en tiempo real.
               </p>
             </div>
           </div>

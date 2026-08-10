@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { Mail, Lock, LogIn } from "lucide-react";
+import { apiFetch } from "../api/client";
 
 // Formulario de inicio de sesion con consumo de API
-export default function LoginForm({ apiBaseUrl, onLoginSuccess, addAlert, setView }) {
+export default function LoginForm({ onLoginSuccess, addAlert, setView }) {
   const [correo, setCorreo] = useState("");
   const [contrasena, setContrasena] = useState("");
   const [cargando, setCargando] = useState(false);
@@ -17,19 +18,10 @@ export default function LoginForm({ apiBaseUrl, onLoginSuccess, addAlert, setVie
 
     setCargando(true);
     try {
-      const respuesta = await fetch(`${apiBaseUrl}/api/usuarios/login`, {
+      const datos = await apiFetch("/api/usuarios/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ correo, contrasena }),
+        body: { correo, contrasena },
       });
-
-      const datos = await respuesta.json();
-
-      if (!respuesta.ok) {
-        throw new Error(datos.message || "Error al iniciar sesion");
-      }
 
       // Guardar token y datos del usuario en el estado global
       onLoginSuccess(datos.token, datos.usuario);

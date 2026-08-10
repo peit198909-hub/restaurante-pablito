@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
+import { API_URL } from "../api/client";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 /**
  * Custom Hook para conectarse al canal SSE (Server-Sent Events) de pedidos en tiempo real.

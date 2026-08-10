@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { CartProvider } from "./context/CartContext";
 import Navbar from "./components/Navbar";
 import AlertContainer from "./components/Alert";
@@ -14,12 +14,11 @@ import AdminProductsView from "./components/admin/AdminProductsView";
 import AdminOrdersView from "./components/admin/AdminOrdersView";
 import AdminDashboardView from "./components/admin/AdminDashboardView";
 import AdminConfigView from "./components/admin/AdminConfigView";
+import AdminPosView from "./components/admin/AdminPosView";
 import DeliveryView from "./components/DeliveryView";
 import { useOrderAbly } from "./hooks/useOrderAbly";
 import { playNotificationSound } from "./utils/soundUtils";
 import { UtensilsCrossed, ShieldAlert, User, ShieldCheck, ShoppingBag, Package, TrendingUp, Truck } from "lucide-react";
-
-const apiBaseUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 const FORMATO_ESTADO = {
   pendiente: "Pendiente",
@@ -51,6 +50,16 @@ function AppContent() {
   const [currentOrderId, setCurrentOrderId] = useState(null);
   const [alerts, setAlerts] = useState([]);
 
+  // Estado para la lista de notificaciones persistente de la campanita
+  const [notifications, setNotifications] = useState([]);
+
+  // Guardar notificaciones por usuario en localStorage
+  useEffect(() => {
+    if (usuario?.id) {
+      localStorage.setItem(`notificaciones_${usuario.id}`, JSON.stringify(notifications));
+    }
+  }, [notifications, usuario?.id]);
+
   // Función utilitaria para agregar alertas flotantes autodescartables
   const addAlert = useCallback((message, type = "info") => {
     const id = Date.now();
@@ -66,33 +75,302 @@ function AppContent() {
     setAlerts((prev) => prev.filter((a) => a.id !== id));
   };
 
-  // Manejador global de eventos Ably Realtime para mostrar notificaciones flotantes y reproducir sonido en tiempo real
-  const handleOrderAblyUpdate = useCallback((eventData) => {
+  // Construir detalles de notificación estructurados según el rol del usuario
+  const buildNotificationDetails = useCallback((eventData, rol) => {
     const { tipo, pedido_id, estado } = eventData;
+    const id = pedido_id || "";
+    let titulo = `Pedido #${id}`;
+    let mensaje = "";
+    let badgeColor = "bg-warning text-dark";
+
+    if (rol === "repartidor") {
+      if (tipo === "asignado") {
+        titulo = `🛵 Nueva Entrega Asignada #${id}`;
+        mensaje = `Se te asignó el pedido #${id}. Revisa los detalles de entrega en Mis Entregas.`;
+        badgeColor = "bg-gold text-dark";
+      } else if (estado === "listo") {
+        titulo = `📦 Pedido #${id} listo en cocina`;
+        mensaje = `El pedido #${id} está cocinado y listo para ser despachado.`;
+        badgeColor = "bg-info text-dark";
+      } else if (estado === "en_camino") {
+        titulo = `🚚 Entrega #${id} en camino`;
+        mensaje = `Iniciaste el reparto del pedido #${id}.`;
+        badgeColor = "bg-primary text-white";
+      } else if (estado === "entregado") {
+        titulo = `🎉 Entrega #${id} completada`;
+        mensaje = `El pedido #${id} fue entregado exitosamente.`;
+        badgeColor = "bg-success text-white";
+      } else {
+        titulo = `🔔 Entrega #${id} actualizada`;
+        mensaje = `El pedido #${id} cambió a estado '${FORMATO_ESTADO[estado] || estado}'.`;
+        badgeColor = "bg-secondary text-white";
+      }
+    } else if (rol === "administrador") {
+      if (tipo === "creado" || estado === "pendiente") {
+        titulo = `🛒 Nuevo Pedido #${id} recibido`;
+        mensaje = `Se ha recibido un nuevo pedido en el sistema. Revisa los detalles en Gestión de Pedidos.`;
+        badgeColor = "bg-success text-white";
+      } else if (estado === "confirmado") {
+        titulo = `🔵 Pedido #${id} Confirmado`;
+        mensaje = `El pedido #${id} fue aceptado y enviado a cocina.`;
+        badgeColor = "bg-primary text-white";
+      } else if (estado === "en_preparacion") {
+        titulo = `🍳 Pedido #${id} En Preparación`;
+        mensaje = `El pedido #${id} se está cocinando en cocina.`;
+        badgeColor = "bg-warning text-dark";
+      } else if (estado === "listo") {
+        titulo = `📦 Pedido #${id} Listo para Entrega`;
+        mensaje = `El pedido #${id} está empacado y listo para retiro/reparto.`;
+        badgeColor = "bg-info text-dark";
+      } else if (estado === "en_camino") {
+        titulo = `🛵 Pedido #${id} En Camino`;
+        mensaje = `El repartidor inició la entrega del pedido #${id}.`;
+        badgeColor = "bg-primary text-white";
+      } else if (estado === "entregado") {
+        titulo = `✅ Pedido #${id} Entregado`;
+        mensaje = `El pedido #${id} fue marcado como entregado.`;
+        badgeColor = "bg-success text-white";
+      } else if (estado === "cancelado") {
+        titulo = `❌ Pedido #${id} Cancelado`;
+        mensaje = `El pedido #${id} ha sido cancelado.`;
+        badgeColor = "bg-danger text-white";
+      } else {
+        titulo = `🔔 Pedido #${id} Actualizado`;
+        mensaje = `El pedido #${id} cambió al estado '${FORMATO_ESTADO[estado] || estado}'.`;
+        badgeColor = "bg-secondary text-white";
+      }
+    } else {
+      // Cliente
+      if (tipo === "creado" || estado === "pendiente") {
+        titulo = `🛒 ¡Tu pedido #${id} fue recibido!`;
+        mensaje = `Tu pedido #${id} fue enviado al restaurante. ¡Está pendiente de aprobación y cocina!`;
+        badgeColor = "bg-warning text-dark";
+      } else if (estado === "confirmado") {
+        titulo = `🔵 ¡Tu pedido #${id} fue confirmado!`;
+        mensaje = `El restaurante aceptó tu pedido #${id}. ¡En breve pasará a la cocina!`;
+        badgeColor = "bg-primary text-white";
+      } else if (estado === "en_preparacion") {
+        titulo = `👨‍🍳 Tu pedido #${id} está en cocina`;
+        mensaje = `Nuestros chefs están preparando tu pedido #${id} con los mejores ingredientes.`;
+        badgeColor = "bg-warning text-dark";
+      } else if (estado === "listo") {
+        titulo = `📦 ¡Tu pedido #${id} está listo!`;
+        mensaje = `Tu pedido #${id} ya fue preparado y empaquetado.`;
+        badgeColor = "bg-info text-dark";
+      } else if (estado === "en_camino") {
+        titulo = `🛵 ¡Tu pedido #${id} va en camino!`;
+        mensaje = `El motorizado salió con tu pedido #${id} rumbo a tu domicilio. ¡Prepárate para recibirlo!`;
+        badgeColor = "bg-gold text-dark";
+      } else if (estado === "entregado") {
+        titulo = `🎉 ¡Pedido #${id} Entregado!`;
+        mensaje = `Tu pedido #${id} ha sido entregado. ¡Que disfrutes tu comida en Restaurante Pablito!`;
+        badgeColor = "bg-success text-white";
+      } else if (estado === "cancelado") {
+        titulo = `❌ Tu pedido #${id} fue cancelado`;
+        mensaje = `El pedido #${id} fue cancelado. Si tienes dudas, contáctate con nosotros.`;
+        badgeColor = "bg-danger text-white";
+      } else {
+        titulo = `🔔 Tu pedido #${id} fue actualizado`;
+        mensaje = `Tu pedido #${id} pasó al estado '${FORMATO_ESTADO[estado] || estado}'.`;
+        badgeColor = "bg-secondary text-white";
+      }
+    }
+
+    return {
+      id: Date.now() + Math.random(),
+      pedido_id: id,
+      titulo,
+      mensaje,
+      estado,
+      badgeColor,
+      timestamp: new Date().toISOString(),
+      leido: false,
+    };
+  }, []);
+
+  // Sincronizar notificaciones activas del servidor al iniciar sesión o refrescar
+  useEffect(() => {
+    if (!usuario?.id || !token) {
+      setNotifications([]);
+      return;
+    }
+
+    let iniciales = [];
+    try {
+      const saved = localStorage.getItem(`notificaciones_${usuario.id}`);
+      if (saved) iniciales = JSON.parse(saved);
+    } catch (e) {
+      iniciales = [];
+    }
+
+    const sincronizarConServidor = async () => {
+      try {
+        if (usuario.rol === "repartidor") {
+          const res = await apiFetch("/api/pedidos/repartidor/activo");
+          const entregas = res?.entrega?.entregas || (res?.entrega?.pedido ? [res.entrega] : []);
+          for (const ent of entregas) {
+            if (ent?.pedido?.id) {
+              const pid = ent.pedido.id;
+              const existe = iniciales.some((n) => Number(n.pedido_id) === Number(pid));
+              if (!existe) {
+                const notif = buildNotificationDetails(
+                  { tipo: "asignado", pedido_id: pid, estado: ent.pedido.estado, pedido: ent.pedido },
+                  "repartidor"
+                );
+                iniciales = [notif, ...iniciales];
+              }
+            }
+          }
+        } else if (usuario.rol === "administrador") {
+          const res = await apiFetch("/api/pedidos?estado=pendiente&limit=10");
+          const pedidosPendientes = res?.pedidos || (Array.isArray(res) ? res : []);
+          for (const ped of pedidosPendientes) {
+            const existe = iniciales.some((n) => Number(n.pedido_id) === Number(ped.id));
+            if (!existe) {
+              const notif = buildNotificationDetails(
+                { tipo: "creado", pedido_id: ped.id, estado: ped.estado, pedido: ped },
+                "administrador"
+              );
+              iniciales = [notif, ...iniciales];
+            }
+          }
+        } else {
+          // Cliente: Sincronizar sus pedidos recientes
+          const res = await apiFetch("/api/pedidos/mis-pedidos?page=1&limit=5");
+          const misPedidos = res?.pedidos || (Array.isArray(res) ? res : []);
+          for (const ped of misPedidos) {
+            const existe = iniciales.some((n) => Number(n.pedido_id) === Number(ped.id));
+            if (!existe) {
+              const notif = buildNotificationDetails(
+                { tipo: "creado", pedido_id: ped.id, estado: ped.estado, pedido: ped },
+                "cliente"
+              );
+              iniciales = [notif, ...iniciales];
+            }
+          }
+        }
+        setNotifications((prev) => {
+          const mapa = new Map();
+          // Preservar notificaciones existentes
+          prev.forEach((n) => {
+            const key = `${n.pedido_id}_${n.titulo}`;
+            if (!mapa.has(key)) mapa.set(key, n);
+          });
+          // Agregar notificaciones iniciales sin duplicar
+          iniciales.forEach((n) => {
+            const key = `${n.pedido_id}_${n.titulo}`;
+            if (!mapa.has(key)) mapa.set(key, n);
+          });
+          return Array.from(mapa.values()).slice(0, 50);
+        });
+      } catch (err) {
+        setNotifications((prev) => prev);
+      }
+    };
+
+    sincronizarConServidor();
+  }, [usuario?.id, usuario?.rol, token, buildNotificationDetails]);
+
+  const lastProcessedRef = useRef(new Map());
+
+  // Manejador global de eventos Ably Realtime
+  const handleOrderAblyUpdate = useCallback((eventData) => {
+    if (!eventData || !eventData.pedido_id) return;
+    const { tipo, pedido_id, estado, usuario_id, repartidor_id } = eventData;
+    const key = `${pedido_id}_${tipo || ''}_${estado || ''}`;
+    const now = Date.now();
+
+    // Evitar procesar el mismo evento en menos de 1.5s
+    if (lastProcessedRef.current.has(key) && (now - lastProcessedRef.current.get(key)) < 1500) {
+      return;
+    }
+    lastProcessedRef.current.set(key, now);
+
     const nombreEstado = FORMATO_ESTADO[estado] || estado;
 
-    // Reproducir el tono suave y brillante de ElevenLabs
+    // Determinar si corresponde notificar y reproducir sonido en esta ventana según el rol activo
+    let debeSonaryNotificar = false;
+
+    if (usuario?.rol === "administrador") {
+      // El administrador SIEMPRE recibe notificaciones y sonidos de todos los pedidos
+      debeSonaryNotificar = true;
+    } else if (usuario?.rol === "repartidor") {
+      // El repartidor recibe si el pedido está asignado a su ID
+      if (!repartidor_id || Number(repartidor_id) === Number(usuario?.id)) {
+        debeSonaryNotificar = true;
+      }
+    } else if (usuario?.rol === "cliente") {
+      // El cliente sólo escucha y recibe notificación de sus propios pedidos
+      if (Number(usuario_id) === Number(usuario?.id)) {
+        debeSonaryNotificar = true;
+      }
+    } else if (!usuario) {
+      debeSonaryNotificar = true;
+    }
+
+    if (!debeSonaryNotificar) return;
+
+    // Reproducir sonido brillante de notificación sonora
     playNotificationSound();
 
     if (usuario?.rol === "repartidor") {
       if (tipo === "asignado") {
-        addAlert(`🛵 ¡Nuevo pedido #${pedido_id} asignado automáticamente a tu cuenta!`, "success");
+        addAlert(`🛵 ¡Nuevo pedido #${pedido_id} asignado a tu cuenta!`, "success");
       } else {
         addAlert(`🔔 Entrega #${pedido_id} actualizada: ${nombreEstado}`, "info");
       }
     } else if (usuario?.rol === "administrador") {
       if (tipo === "creado") {
-        addAlert(`🔔 ¡Nuevo pedido #${pedido_id} recibido!`, "success");
+        addAlert(`🔔 ¡Nuevo pedido #${pedido_id} recibido en el restaurante!`, "success");
       } else {
         addAlert(`🔔 Pedido #${pedido_id} actualizado a '${nombreEstado}'`, "info");
       }
     } else {
       addAlert(`🔔 Tu pedido #${pedido_id} ahora está en estado: ${nombreEstado}`, "info");
     }
-  }, [usuario, addAlert]);
 
-  // Activar la conexión Ably Realtime en tiempo real
+    // Agregar a la campanita persistente si el usuario está autenticado sin duplicados
+    if (usuario) {
+      const nuevaNotif = buildNotificationDetails(eventData, usuario.rol);
+      setNotifications((prev) => {
+        const yaExiste = prev.some(
+          (n) => Number(n.pedido_id) === Number(pedido_id) && n.titulo === nuevaNotif.titulo
+        );
+        if (yaExiste) return prev;
+        return [nuevaNotif, ...prev.slice(0, 49)];
+      });
+    }
+  }, [usuario, addAlert, buildNotificationDetails]);
+
+  // Activar conexión en tiempo real exclusiva de Ably Realtime
   useOrderAbly(token, handleOrderAblyUpdate);
+
+  const handleMarkAllAsRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, leido: true })));
+  };
+
+  const handleClearNotifications = () => {
+    setNotifications([]);
+  };
+
+  const handleSelectNotification = (notif) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === notif.id ? { ...n, leido: true } : n))
+    );
+
+    if (usuario?.rol === "repartidor") {
+      setView("delivery");
+    } else if (usuario?.rol === "administrador") {
+      setView("admin-pedidos");
+    } else {
+      if (notif.pedido_id) {
+        setCurrentOrderId(notif.pedido_id);
+        setView("seguimiento");
+      } else {
+        setView("mis-pedidos");
+      }
+    }
+  };
 
   // Guardar sesión tras login/registro
   const handleLoginSuccess = (newToken, nuevoUsuario) => {
@@ -120,6 +398,7 @@ function AppContent() {
   const handleLogout = () => {
     setToken("");
     setUsuario(null);
+    setNotifications([]);
     localStorage.removeItem("token");
     localStorage.removeItem("usuario");
     localStorage.removeItem("currentView");
@@ -135,6 +414,10 @@ function AppContent() {
         currentView={view}
         setView={setView}
         onLogout={handleLogout}
+        notifications={notifications}
+        onMarkAllAsRead={handleMarkAllAsRead}
+        onClearNotifications={handleClearNotifications}
+        onSelectNotification={handleSelectNotification}
       />
 
       {/* Contenedor global de alertas flotantes */}
@@ -273,13 +556,16 @@ function AppContent() {
           <AdminOrdersView addAlert={addAlert} />
         )}
 
+        {view === "admin-pos" && usuario?.rol === "administrador" && (
+          <AdminPosView addAlert={addAlert} setView={setView} />
+        )}
+
         {view === "admin-config" && usuario?.rol === "administrador" && (
           <AdminConfigView addAlert={addAlert} />
         )}
 
         {view === "login" && (
           <LoginForm
-            apiBaseUrl={apiBaseUrl}
             onLoginSuccess={handleLoginSuccess}
             addAlert={addAlert}
             setView={setView}
@@ -288,7 +574,6 @@ function AppContent() {
 
         {view === "registro" && (
           <RegisterForm
-            apiBaseUrl={apiBaseUrl}
             onLoginSuccess={handleLoginSuccess}
             addAlert={addAlert}
             setView={setView}
@@ -297,7 +582,6 @@ function AppContent() {
 
         {view === "perfil" && token && (
           <ProfileView
-            apiBaseUrl={apiBaseUrl}
             token={token}
             addAlert={addAlert}
             onUpdateUsuario={handleUpdateUsuario}
@@ -306,7 +590,6 @@ function AppContent() {
 
         {view === "crear-admin" && token && usuario?.rol === "administrador" && (
           <AdminCreateUser
-            apiBaseUrl={apiBaseUrl}
             token={token}
             addAlert={addAlert}
           />

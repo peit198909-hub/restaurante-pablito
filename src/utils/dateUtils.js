@@ -47,3 +47,20 @@ export function formatSoloFecha(dateStr) {
 
   return d.toLocaleDateString();
 }
+
+/**
+ * Formatea una fecha a tiempo relativo ("Hace un momento", "Hace 5 min", etc.)
+ */
+export function formatTiempoRelativo(dateStr) {
+  const d = parseFechaUTC(dateStr) || new Date(dateStr);
+  if (!d || isNaN(d.getTime())) return dateStr || "";
+
+  const diffMs = Date.now() - d.getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return "Hace un momento";
+  if (mins < 60) return `Hace ${mins} min`;
+  const horas = Math.floor(mins / 60);
+  if (horas < 24) return `Hace ${horas} h`;
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+

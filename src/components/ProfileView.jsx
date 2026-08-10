@@ -2,9 +2,10 @@ import React, { useState, useEffect } from "react";
 import { User, Phone, MapPin, KeyRound, Save, Mail, Calendar, Navigation } from "lucide-react";
 import { formatSoloFecha } from "../utils/dateUtils";
 import AddressMapPicker from "./AddressMapPicker";
+import { apiFetch } from "../api/client";
 
 // Vista y formulario de edicion de perfil
-export default function ProfileView({ apiBaseUrl, token, addAlert, onUpdateUsuario }) {
+export default function ProfileView({ token, addAlert, onUpdateUsuario }) {
   const [nombre, setNombre] = useState("");
   const [apellido, setApellido] = useState("");
   const [correo, setCorreo] = useState("");
@@ -26,18 +27,7 @@ export default function ProfileView({ apiBaseUrl, token, addAlert, onUpdateUsuar
   useEffect(() => {
     const obtenerPerfil = async () => {
       try {
-        const respuesta = await fetch(`${apiBaseUrl}/api/usuarios/perfil`, {
-          method: "GET",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-          },
-        });
-
-        const datos = await respuesta.json();
-        if (!respuesta.ok) {
-          throw new Error(datos.message || "Error al obtener perfil");
-        }
-
+        const datos = await apiFetch("/api/usuarios/perfil", { token });
         const u = datos.usuario;
         setNombre(u.nombre || "");
         setApellido(u.apellido || "");
@@ -54,7 +44,7 @@ export default function ProfileView({ apiBaseUrl, token, addAlert, onUpdateUsuar
     };
 
     obtenerPerfil();
-  }, [apiBaseUrl, token]);
+  }, [token]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -89,19 +79,11 @@ export default function ProfileView({ apiBaseUrl, token, addAlert, onUpdateUsuar
         payload.contrasenaNueva = contrasenaNueva;
       }
 
-      const respuesta = await fetch(`${apiBaseUrl}/api/usuarios/perfil`, {
+      const datos = await apiFetch("/api/usuarios/perfil", {
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
+        token,
+        body: payload,
       });
-
-      const datos = await respuesta.json();
-      if (!respuesta.ok) {
-        throw new Error(datos.message || "Error al guardar los cambios");
-      }
 
       addAlert("¡Perfil actualizado con exito!", "success");
 
