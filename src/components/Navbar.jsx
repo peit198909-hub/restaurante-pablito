@@ -2,8 +2,19 @@ import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { User, LogOut, ShieldAlert, UtensilsCrossed, Utensils, ShoppingCart, Package, Settings, ClipboardList, TrendingUp, Truck } from "lucide-react";
 import { useCart } from "../context/CartContext";
+import NotificationBell from "./NotificationBell";
 
-export default function Navbar({ usuario, currentView, setView, onLogout }) {
+export default function Navbar({
+  usuario,
+  currentView,
+  setView,
+  onLogout,
+  notifications = [],
+  onMarkAsRead,
+  onMarkAllAsRead,
+  onClearAll,
+  onSelectNotification,
+}) {
   const [isOpen, setIsOpen] = useState(false);
   const { totalItems } = useCart();
 
@@ -211,6 +222,17 @@ export default function Navbar({ usuario, currentView, setView, onLogout }) {
                     </li>
                   </>
                 )}
+
+                {/* Campana de Notificaciones Realtime */}
+                <li className="nav-item d-flex align-items-center px-2">
+                  <NotificationBell
+                    notifications={notifications}
+                    onMarkAsRead={onMarkAsRead}
+                    onMarkAllAsRead={onMarkAllAsRead}
+                    onClearAll={onClearAll}
+                    onSelectNotification={onSelectNotification}
+                  />
+                </li>
 
                 {/* Perfil */}
                 <li className="nav-item">

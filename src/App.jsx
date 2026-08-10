@@ -50,6 +50,19 @@ function AppContent() {
 
   const [currentOrderId, setCurrentOrderId] = useState(null);
   const [alerts, setAlerts] = useState([]);
+  const [notifications, setNotifications] = useState(() => {
+    const savedUser = localStorage.getItem("usuario");
+    const userId = savedUser ? JSON.parse(savedUser)?.id : "guest";
+    const saved = localStorage.getItem(`notificaciones_${userId}`);
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // Guardar notificaciones en localStorage asociadas al usuario actual
+  useEffect(() => {
+    if (usuario?.id) {
+      localStorage.setItem(`notificaciones_${usuario.id}`, JSON.stringify(notifications));
+    }
+  }, [notifications, usuario]);
 
   // Función utilitaria para agregar alertas flotantes autodescartables
   const addAlert = useCallback((message, type = "info") => {
@@ -66,7 +79,35 @@ function AppContent() {
     setAlerts((prev) => prev.filter((a) => a.id !== id));
   };
 
-  // Manejador global de eventos Ably Realtime para mostrar notificaciones flotantes y reproducir sonido en tiempo real
+  // Manejadores de acciones para la campana de notificaciones
+  const handleMarkAsRead = (notifId) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === notifId ? { ...n, read: true } : n))
+    );
+  };
+
+  const handleMarkAllAsRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  };
+
+  const handleClearAllNotifications = () => {
+    setNotifications([]);
+  };
+
+  const handleSelectNotification = (notif) => {
+    if (notif.pedido_id) {
+      setCurrentOrderId(notif.pedido_id);
+    }
+    if (usuario?.rol === "administrador") {
+      setView("admin-pedidos");
+    } else if (usuario?.rol === "repartidor") {
+      setView("delivery");
+    } else {
+      setView(notif.pedido_id ? "seguimiento" : "mis-pedidos");
+    }
+  };
+
+  // Manejador global de eventos Ably Realtime para mostrar notificaciones flotantes y guardarlas en la campana
   const handleOrderAblyUpdate = useCallback((eventData) => {
     const { tipo, pedido_id, estado } = eventData;
     const nombreEstado = FORMATO_ESTADO[estado] || estado;
@@ -74,21 +115,43 @@ function AppContent() {
     // Reproducir el tono suave y brillante de ElevenLabs
     playNotificationSound();
 
+    let message = "";
+    let alertType = "info";
+
     if (usuario?.rol === "repartidor") {
       if (tipo === "asignado") {
-        addAlert(`🛵 ¡Nuevo pedido #${pedido_id} asignado automáticamente a tu cuenta!`, "success");
+        message = `🛵 ¡Nuevo pedido #${pedido_id} asignado automáticamente a tu cuenta!`;
+        alertType = "success";
       } else {
-        addAlert(`🔔 Entrega #${pedido_id} actualizada: ${nombreEstado}`, "info");
+        message = `🔔 Entrega #${pedido_id} actualizada: ${nombreEstado}`;
       }
     } else if (usuario?.rol === "administrador") {
       if (tipo === "creado") {
-        addAlert(`🔔 ¡Nuevo pedido #${pedido_id} recibido!`, "success");
+        message = `🔔 ¡Nuevo pedido #${pedido_id} recibido!`;
+        alertType = "success";
       } else {
-        addAlert(`🔔 Pedido #${pedido_id} actualizado a '${nombreEstado}'`, "info");
+        message = `🔔 Pedido #${pedido_id} actualizado a '${nombreEstado}'`;
       }
     } else {
-      addAlert(`🔔 Tu pedido #${pedido_id} ahora está en estado: ${nombreEstado}`, "info");
+      message = `🔔 Tu pedido #${pedido_id} ahora está en estado: ${nombreEstado}`;
     }
+
+    // Mostrar alerta flotante temporal
+    addAlert(message, alertType);
+
+    // Agregar a la lista persistente de la campana de notificaciones
+    setNotifications((prev) => [
+      {
+        id: Date.now() + Math.random(),
+        message,
+        timestamp: new Date().toISOString(),
+        read: false,
+        pedido_id,
+        tipo,
+        estado,
+      },
+      ...prev.slice(0, 49), // Limitar a las últimas 50 notificaciones
+    ]);
   }, [usuario, addAlert]);
 
   // Activar la conexión Ably Realtime en tiempo real
@@ -100,6 +163,11 @@ function AppContent() {
     setUsuario(nuevoUsuario);
     localStorage.setItem("token", newToken);
     localStorage.setItem("usuario", JSON.stringify(nuevoUsuario));
+
+    // Cargar notificaciones del usuario logueado
+    const savedNotifs = localStorage.getItem(`notificaciones_${nuevoUsuario.id}`);
+    setNotifications(savedNotifs ? JSON.parse(savedNotifs) : []);
+
     addAlert(`Bienvenido/a de nuevo, ${nuevoUsuario.nombre}`, "success");
     if (nuevoUsuario?.rol === "repartidor") {
       setView("delivery");
@@ -120,6 +188,7 @@ function AppContent() {
   const handleLogout = () => {
     setToken("");
     setUsuario(null);
+    setNotifications([]);
     localStorage.removeItem("token");
     localStorage.removeItem("usuario");
     localStorage.removeItem("currentView");
@@ -129,12 +198,17 @@ function AppContent() {
 
   return (
     <>
-      {/* Barra de navegación adaptable */}
+      {/* Barra de navegación adaptable con campana de notificaciones */}
       <Navbar
         usuario={usuario}
         currentView={view}
         setView={setView}
         onLogout={handleLogout}
+        notifications={notifications}
+        onMarkAsRead={handleMarkAsRead}
+        onMarkAllAsRead={handleMarkAllAsRead}
+        onClearAll={handleClearAllNotifications}
+        onSelectNotification={handleSelectNotification}
       />
 
       {/* Contenedor global de alertas flotantes */}
