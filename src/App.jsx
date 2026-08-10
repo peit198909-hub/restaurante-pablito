@@ -294,20 +294,29 @@ function AppContent() {
 
     const nombreEstado = FORMATO_ESTADO[estado] || estado;
 
+    // ID del usuario logueado (siempre como string para comparaciones seguras)
+    const miId = String(usuario?.id ?? "");
+
     // Determinar si corresponde notificar y reproducir sonido en esta ventana según el rol activo
     let debeSonaryNotificar = false;
 
     if (usuario?.rol === "administrador") {
-      // El administrador SIEMPRE recibe notificaciones y sonidos de todos los pedidos
+      // El administrador SIEMPRE recibe notificaciones de todos los pedidos
       debeSonaryNotificar = true;
     } else if (usuario?.rol === "repartidor") {
-      // El repartidor recibe si el pedido está asignado a su ID
-      if (!repartidor_id || Number(repartidor_id) === Number(usuario?.id)) {
+      // El repartidor recibe si:
+      // - El pedido fue asignado a él (repartidor_id coincide)
+      // - O es un evento "asignado" sin repartidor_id (caso de auto-asignación en cola)
+      const repId = repartidor_id != null ? String(repartidor_id) : null;
+      if (repId === miId || (tipo === "asignado" && !repId)) {
         debeSonaryNotificar = true;
       }
     } else if (usuario?.rol === "cliente") {
-      // El cliente sólo escucha y recibe notificación de sus propios pedidos
-      if (Number(usuario_id) === Number(usuario?.id)) {
+      // El cliente recibe si:
+      // - El usuario_id del evento coincide con su propio ID
+      // - O si usuario_id no está en el evento (eventos como "asignado" que pueden omitirlo)
+      const evtUserId = usuario_id != null ? String(usuario_id) : null;
+      if (!evtUserId || evtUserId === miId) {
         debeSonaryNotificar = true;
       }
     } else if (!usuario) {
