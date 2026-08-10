@@ -1,12 +1,15 @@
 import { useEffect, useRef } from "react";
-import Ably from "ably";
+import Pusher from "pusher-js";
 
-const ABLY_KEY = import.meta.env.VITE_ABLY_API_KEY;
+const PUSHER_KEY = import.meta.env.VITE_PUSHER_KEY;
+const PUSHER_CLUSTER = import.meta.env.VITE_PUSHER_CLUSTER || "us2";
 
 /**
- * Custom Hook para conectarse a Ably Realtime y recibir notificaciones instantáneas de pedidos y delivery.
- * @param {string} token - Token JWT del usuario o repartidor autenticado.
- * @param {function} onOrderUpdate - Callback para alertas flotantes y notificaciones sonoras.
+ * Custom Hook para conectarse a Pusher Channels y recibir notificaciones
+ * instantáneas de pedidos y delivery en tiempo real.
+ *
+ * @param {string} token - Token JWT del usuario autenticado (se usa para re-conectar cuando cambia sesión).
+ * @param {function} onOrderUpdate - Callback que se invoca con los datos del evento recibido.
  */
 export function useOrderAbly(token, onOrderUpdate) {
   const callbackRef = useRef(onOrderUpdate);
@@ -16,24 +19,35 @@ export function useOrderAbly(token, onOrderUpdate) {
   }, [onOrderUpdate]);
 
   useEffect(() => {
-    if (!ABLY_KEY) {
-      console.warn("⚠️ Advertencia: VITE_ABLY_API_KEY no está definida en las variables de entorno del frontend.");
+    if (!PUSHER_KEY) {
+      console.warn("⚠️ VITE_PUSHER_KEY no está definida. Las notificaciones en tiempo real no funcionarán.");
       return;
     }
 
-    let ablyClient = null;
+    // Habilitar logging solo en desarrollo
+    if (import.meta.env.DEV) {
+      Pusher.logToConsole = true;
+    }
+
+    let pusherClient = null;
 
     try {
-      ablyClient = new Ably.Realtime({ key: ABLY_KEY });
-      const channel = ablyClient.channels.get("restaurante-pablito-pedidos");
-
-      ablyClient.connection.on("connected", () => {
-        console.log("⚡ Ably Realtime: Conectado con éxito al canal de notificaciones en vivo.");
+      pusherClient = new Pusher(PUSHER_KEY, {
+        cluster: PUSHER_CLUSTER,
       });
 
-      channel.subscribe("pedido_actualizado", (message) => {
-        const data = message.data || {};
-        console.log("⚡ Ably Realtime Evento Recibido:", data);
+      const channel = pusherClient.subscribe("restaurante-pablito-pedidos");
+
+      pusherClient.connection.bind("connected", () => {
+        console.log("⚡ Pusher Channels: Conectado con éxito al canal de notificaciones en vivo.");
+      });
+
+      pusherClient.connection.bind("error", (err) => {
+        console.error("❌ Pusher Channels: Error de conexión:", err);
+      });
+
+      channel.bind("pedido_actualizado", (data) => {
+        console.log("⚡ Pusher Evento Recibido:", data);
 
         // Disparar eventos de ventana para actualizar vistas (Delivery, Admin, Cliente) en tiempo real
         window.dispatchEvent(new CustomEvent("order_status_update", { detail: data }));
@@ -44,17 +58,18 @@ export function useOrderAbly(token, onOrderUpdate) {
         }
       });
     } catch (err) {
-      console.error("❌ Error conectando a Ably Realtime:", err.message);
+      console.error("❌ Error conectando a Pusher Channels:", err.message);
     }
 
     return () => {
-      if (ablyClient) {
+      if (pusherClient) {
         try {
-          ablyClient.close();
+          pusherClient.unsubscribe("restaurante-pablito-pedidos");
+          pusherClient.disconnect();
         } catch (e) {
-          // Ignorar advertencia al cerrar conexión en desmontaje
+          // Ignorar errores al desmontar
         }
       }
     };
-  }, []);
+  }, [token]);
 }
