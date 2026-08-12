@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { apiFetch } from "../api/client";
 import { formatFecha } from "../utils/dateUtils";
 import { playNotificationSound } from "../utils/soundUtils";
+import Pagination from "./Pagination";
 import {
   Truck,
   MapPin,
@@ -18,6 +19,7 @@ import {
   Image as ImageIcon,
   ZoomIn,
   X,
+  FileText,
   History,
 } from "lucide-react";
 
@@ -31,6 +33,12 @@ export default function DeliveryView({ usuario, addAlert }) {
   const [tab, setTab] = useState("activa"); // 'activa' | 'historial'
   const [historial, setHistorial] = useState([]);
   const [loadingHistorial, setLoadingHistorial] = useState(false);
+
+  // Estados de Paginación del Historial
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(5);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Modal Lightbox para comprobante
   const [showReceiptModal, setShowReceiptModal] = useState(false);
@@ -77,11 +85,14 @@ export default function DeliveryView({ usuario, addAlert }) {
     }
   };
 
-  const cargarHistorial = async () => {
+  const cargarHistorial = async (targetPage = page, targetLimit = limit) => {
     setLoadingHistorial(true);
     try {
-      const res = await apiFetch("/api/pedidos/repartidor/historial");
+      const res = await apiFetch(`/api/pedidos/repartidor/historial?page=${targetPage}&limit=${targetLimit}`);
       setHistorial(res.entregas || []);
+      setTotal(res.total || 0);
+      setTotalPages(res.totalPages || 1);
+      setPage(res.page || 1);
     } catch (err) {
       console.error("Error cargando historial de entregas:", err);
     } finally {
@@ -183,30 +194,48 @@ export default function DeliveryView({ usuario, addAlert }) {
           ) : historial.length === 0 ? (
             <p className="text-muted text-center py-4 mb-0">Aún no has completado entregas.</p>
           ) : (
-            <div className="table-responsive">
-              <table className="table table-hover align-middle mb-0">
-                <thead>
-                  <tr className="text-muted small border-bottom border-glass">
-                    <th># Pedido</th>
-                    <th>Cliente</th>
-                    <th>Dirección</th>
-                    <th>Total</th>
-                    <th>Completado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {historial.map((h) => (
-                    <tr key={h.id}>
-                      <td className="fw-bold text-gold">#{h.id}</td>
-                      <td>{h.cliente_nombre} {h.cliente_apellido}</td>
-                      <td className="small">{h.direccion_entrega}</td>
-                      <td className="fw-bold text-gold">${Number(h.total).toFixed(2)}</td>
-                      <td className="small text-muted">{formatFecha(h.actualizado_en || h.creado_en)}</td>
+            <>
+              <div className="table-responsive">
+                <table className="table table-hover align-middle mb-0">
+                  <thead>
+                    <tr className="text-muted small border-bottom border-glass">
+                      <th># Pedido</th>
+                      <th>Cliente</th>
+                      <th>Dirección</th>
+                      <th>Total</th>
+                      <th>Completado</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {historial.map((h) => (
+                      <tr key={h.id}>
+                        <td className="fw-bold text-gold">#{h.id}</td>
+                        <td>{h.cliente_nombre} {h.cliente_apellido}</td>
+                        <td className="small">{h.direccion_entrega}</td>
+                        <td className="fw-bold text-gold">${Number(h.total).toFixed(2)}</td>
+                        <td className="small text-muted">{formatFecha(h.actualizado_en || h.creado_en)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                total={total}
+                limit={limit}
+                onPageChange={(newPage) => {
+                  setPage(newPage);
+                  cargarHistorial(newPage, limit);
+                }}
+                onLimitChange={(newLimit) => {
+                  setLimit(newLimit);
+                  setPage(1);
+                  cargarHistorial(1, newLimit);
+                }}
+              />
+            </>
           )}
         </div>
       ) : !entregaActiva ? (

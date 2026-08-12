@@ -59,12 +59,10 @@ function AppContent() {
     return saved ? JSON.parse(saved) : [];
   });
 
-  // Guardar notificaciones por usuario en localStorage
-  useEffect(() => {
-    if (usuario?.id) {
-      localStorage.setItem(`notificaciones_${usuario.id}`, JSON.stringify(notifications));
-    }
-  }, [notifications, usuario?.id]);
+  // Función utilitaria para eliminar alertas flotantes autodescartables
+  const removeAlert = useCallback((id) => {
+    setAlerts((prev) => prev.filter((a) => a.id !== id));
+  }, []);
 
   // Función utilitaria para agregar alertas flotantes autodescartables
   const addAlert = useCallback((message, type = "info") => {
@@ -75,11 +73,31 @@ function AppContent() {
     setTimeout(() => {
       removeAlert(id);
     }, 5000);
-  }, []);
+  }, [removeAlert]);
 
-  const removeAlert = (id) => {
-    setAlerts((prev) => prev.filter((a) => a.id !== id));
-  };
+  // Guardar notificaciones por usuario en localStorage
+  useEffect(() => {
+    if (usuario?.id) {
+      localStorage.setItem(`notificaciones_${usuario.id}`, JSON.stringify(notifications));
+    }
+  }, [notifications, usuario?.id]);
+
+  // Manejar expiración automática de sesión
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      setToken("");
+      setUsuario(null);
+      setNotifications([]);
+      localStorage.removeItem("token");
+      localStorage.removeItem("usuario");
+      localStorage.removeItem("currentView");
+      setViewState("inicio");
+      addAlert("Tu sesión ha expirado o es inválida. Por favor, inicia sesión de nuevo.", "danger");
+    };
+
+    window.addEventListener("auth_expired", handleAuthExpired);
+    return () => window.removeEventListener("auth_expired", handleAuthExpired);
+  }, [addAlert]);
 
   // Construir detalles de notificación estructurados según el rol del usuario
   const buildNotificationDetails = useCallback((eventData, rol) => {
@@ -443,7 +461,7 @@ function AppContent() {
       {/* Contenedor global de alertas flotantes */}
       <AlertContainer alerts={alerts} removeAlert={removeAlert} />
 
-      <main className="main-content d-flex align-items-center">
+      <main className={`main-content ${usuario?.rol === "administrador" ? "has-admin-bar" : ""}`}>
         {view === "inicio" && (
           usuario?.rol === "administrador" ? (
             <AdminDashboardView setView={setView} addAlert={addAlert} />

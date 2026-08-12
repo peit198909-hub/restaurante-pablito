@@ -1,11 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { apiFetch } from "../../api/client";
-import { DollarSign, ShoppingBag, TrendingUp, PackageCheck, Clock, Award, ArrowRight, RefreshCw, AlertCircle } from "lucide-react";
+import { DollarSign, ShoppingBag, TrendingUp, PackageCheck, Clock, Award, ArrowRight, RefreshCw, AlertCircle, History, Truck } from "lucide-react";
+import { formatFecha } from "../../utils/dateUtils";
+import Pagination from "../Pagination";
 
 export default function AdminDashboardView({ setView, addAlert }) {
   const [metricas, setMetricas] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Paginación para historial reciente
+  const [historialPage, setHistorialPage] = useState(1);
+  const historialLimit = 5;
 
   const cargarDashboard = async () => {
     setLoading(true);
@@ -62,6 +68,7 @@ export default function AdminDashboardView({ setView, addAlert }) {
     totalPedidos = 0,
     ticketPromedio = 0,
     topProductos = [],
+    ultimosPedidos = [],
   } = metricas || {};
 
   return (
@@ -140,6 +147,82 @@ export default function AdminDashboardView({ setView, addAlert }) {
             <div className="small text-muted mt-2">Valor promedio por entrega</div>
           </div>
         </div>
+      </div>
+
+      {/* Historial Reciente de Ventas y Deliveries */}
+      <div className="glass-card p-4 mb-4 shadow-sm">
+        <div className="d-flex align-items-center justify-content-between mb-3 border-bottom border-glass pb-2">
+          <h5 className="text-gold fw-bold m-0 d-flex align-items-center gap-2">
+            <History size={20} /> Historial Reciente de Ventas y Deliveries
+          </h5>
+          <button className="btn btn-outline-gold btn-sm py-1 px-3 fw-bold" onClick={() => setView("admin-pedidos")}>
+            Ver Todos los Pedidos
+          </button>
+        </div>
+
+        {ultimosPedidos.length === 0 ? (
+          <p className="text-muted small text-center py-4 mb-0">Aún no se han registrado ventas o pedidos en el sistema.</p>
+        ) : (
+          <>
+            <div className="table-responsive">
+              <table className="table table-hover align-middle mb-0">
+                <thead>
+                  <tr className="text-muted extra-small">
+                    <th># Pedido</th>
+                    <th>Cliente</th>
+                    <th>Modalidad</th>
+                    <th>Repartidor</th>
+                    <th>Estado</th>
+                    <th>Total</th>
+                    <th>Fecha</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ultimosPedidos
+                    .slice((historialPage - 1) * historialLimit, historialPage * historialLimit)
+                    .map((ped) => {
+                      let badgeBg = "bg-warning text-dark";
+                      if (ped.estado === "entregado") badgeBg = "bg-success text-white";
+                      else if (ped.estado === "cancelado") badgeBg = "bg-danger text-white";
+                      else if (ped.estado === "en_camino") badgeBg = "bg-info text-dark";
+
+                      return (
+                        <tr key={ped.id}>
+                          <td className="fw-bold text-gold">#{ped.id}</td>
+                          <td className="fw-medium text-dark">
+                            {ped.cliente_nombre ? `${ped.cliente_nombre} ${ped.cliente_apellido || ""}` : "Consumidor Final / POS"}
+                          </td>
+                          <td>
+                            <span className={`badge ${ped.tipo_entrega === "delivery" ? "bg-info bg-opacity-10 text-info border border-info" : "bg-warning bg-opacity-10 text-warning border border-warning"}`}>
+                              {ped.tipo_entrega === "delivery" ? "🛵 Delivery" : "🏢 Local / POS"}
+                            </span>
+                          </td>
+                          <td className="small text-muted">
+                            {ped.repartidor_nombre ? `${ped.repartidor_nombre} ${ped.repartidor_apellido || ""}` : "—"}
+                          </td>
+                          <td>
+                            <span className={`badge ${badgeBg} extra-small fw-bold text-capitalize`}>
+                              {ped.estado.replace("_", " ")}
+                            </span>
+                          </td>
+                          <td className="fw-bold text-gold">${Number(ped.total).toFixed(2)}</td>
+                          <td className="extra-small text-muted">{formatFecha(ped.creado_en)}</td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+
+            <Pagination
+              page={historialPage}
+              totalPages={Math.ceil(ultimosPedidos.length / historialLimit) || 1}
+              total={ultimosPedidos.length}
+              limit={historialLimit}
+              onPageChange={(p) => setHistorialPage(p)}
+            />
+          </>
+        )}
       </div>
 
       {/* Fila Inferior: Platos Más Vendidos y Accesos Rápidos */}

@@ -114,12 +114,13 @@ export default function AdminPosView({ addAlert, setView }) {
     setCartItems((prev) => prev.filter((i) => i.producto_id !== productoId));
   };
 
-  // Cálculos de totales
-  const subtotal = cartItems.reduce((acc, item) => acc + item.precio * item.cantidad, 0);
+  // Cálculos de totales con IVA 15% incluido (desglosado)
+  const montoProductos = cartItems.reduce((acc, item) => acc + item.precio * item.cantidad, 0);
   const IVA_RATE = 0.15;
-  const impuesto = Math.round(subtotal * IVA_RATE * 100) / 100;
+  const subtotalNeto = Math.round((montoProductos / (1 + IVA_RATE)) * 100) / 100;
+  const impuesto = Math.round((montoProductos - subtotalNeto) * 100) / 100;
   const costoEnvio = tipoEntrega === "delivery" ? Math.round(distanciaKm * 0.25 * 100) / 100 : 0;
-  const total = Math.round((subtotal + impuesto + costoEnvio) * 100) / 100;
+  const total = Math.round((montoProductos + costoEnvio) * 100) / 100;
 
   // Cálculo de cambio en efectivo
   const pagoNum = parseFloat(montoPagado || 0);
@@ -142,7 +143,7 @@ export default function AdminPosView({ addAlert, setView }) {
       const itemsPayload = cartItems.map((i) => ({
         producto_id: i.producto_id,
         cantidad: i.cantidad,
-        notas: i.notas || null,
+        notas: i.notas || "",
       }));
 
       const bodyData = {
@@ -308,10 +309,10 @@ export default function AdminPosView({ addAlert, setView }) {
                           )}
                         </div>
 
-                        <span className="fw-bold text-white small text-truncate d-block" title={prod.nombre}>
+                        <span className="fw-bold fs-6 text-truncate d-block mb-1" title={prod.nombre} style={{ color: "var(--primary-orange)" }}>
                           {prod.nombre}
                         </span>
-                        <span className="text-gold fw-bold fs-6 mt-1 d-block">
+                        <span className="text-dark fw-bold small d-block">
                           ${parseFloat(prod.precio).toFixed(2)}
                         </span>
 
@@ -334,7 +335,7 @@ export default function AdminPosView({ addAlert, setView }) {
 
         {/* Columna Derecha: Comanda / Carrito POS */}
         <div className="col-lg-5 col-xl-4">
-          <div className="glass-card p-4 border-glass shadow-sm sticky-top bg-white text-dark" style={{ top: "90px" }}>
+          <div className="glass-card p-4 border-glass shadow-sm sticky-top bg-white text-dark" style={{ top: "135px" }}>
             <h4 className="text-dark fw-bold fs-5 mb-3 d-flex align-items-center justify-content-between border-bottom border-light pb-2">
               <span className="d-flex align-items-center gap-2">
                 <ShoppingCart size={20} className="text-gold" /> Comanda de Venta
@@ -535,12 +536,16 @@ export default function AdminPosView({ addAlert, setView }) {
             {/* Resumen Final de Cobro */}
             <div className="p-3 rounded bg-light border border-light mb-3">
               <div className="d-flex justify-content-between small text-muted mb-1">
-                <span className="text-secondary">Subtotal:</span>
-                <span className="text-dark fw-bold">${subtotal.toFixed(2)}</span>
+                <span className="text-secondary">Monto Productos (IVA incl.):</span>
+                <span className="text-dark fw-bold">${montoProductos.toFixed(2)}</span>
               </div>
-              <div className="d-flex justify-content-between small text-muted mb-1">
-                <span className="text-secondary">IVA (15%):</span>
-                <span className="text-dark fw-bold">${impuesto.toFixed(2)}</span>
+              <div className="d-flex justify-content-between extra-small text-muted mb-1">
+                <span className="text-secondary">Subtotal Neto (sin IVA):</span>
+                <span className="text-dark fw-medium">${subtotalNeto.toFixed(2)}</span>
+              </div>
+              <div className="d-flex justify-content-between extra-small text-muted mb-1">
+                <span className="text-secondary">IVA 15% (incl. desglosado):</span>
+                <span className="text-dark fw-medium">${impuesto.toFixed(2)}</span>
               </div>
               {tipoEntrega === "delivery" && (
                 <div className="d-flex justify-content-between small text-muted mb-1">
@@ -603,49 +608,49 @@ export default function AdminPosView({ addAlert, setView }) {
                 <h4 className="fw-bold text-gold mb-1">Restaurante Pablito</h4>
                 <p className="extra-small text-muted mb-3">Venta Directa de Caja / Punto de Venta (POS)</p>
 
-                <div className="text-start bg-dark p-3 rounded border border-glass mb-3 small">
+                <div className="text-start p-3 rounded mb-3 small" style={{ backgroundColor: "#fdf8f5", border: "1px dashed #d85d30" }}>
                   <div className="d-flex justify-content-between mb-1">
-                    <span className="text-muted">Cliente:</span>
-                    <strong className="text-white">{pedidoCompletado.clienteNombre}</strong>
+                    <span className="fw-semibold text-secondary">Cliente:</span>
+                    <strong className="text-dark">{pedidoCompletado.clienteNombre}</strong>
                   </div>
                   <div className="d-flex justify-content-between mb-1">
-                    <span className="text-muted">Entrega:</span>
-                    <strong className="text-gold text-capitalize">{pedidoCompletado.tipo_entrega}</strong>
+                    <span className="fw-semibold text-secondary">Entrega:</span>
+                    <strong className="text-capitalize" style={{ color: "var(--primary-orange)" }}>{pedidoCompletado.tipo_entrega}</strong>
                   </div>
                   <div className="d-flex justify-content-between mb-1">
-                    <span className="text-muted">Método de Pago:</span>
-                    <strong className="text-white text-capitalize">{pedidoCompletado.metodo_pago}</strong>
+                    <span className="fw-semibold text-secondary">Método de Pago:</span>
+                    <strong className="text-dark text-capitalize">{pedidoCompletado.metodo_pago}</strong>
                   </div>
                   {pedidoCompletado.metodo_pago === "efectivo" && (
                     <>
                       <div className="d-flex justify-content-between mb-1">
-                        <span className="text-muted">Pagó con:</span>
-                        <strong className="text-white">${pedidoCompletado.montoPagado.toFixed(2)}</strong>
+                        <span className="fw-semibold text-secondary">Pagó con:</span>
+                        <strong className="text-dark">${pedidoCompletado.montoPagado.toFixed(2)}</strong>
                       </div>
                       <div className="d-flex justify-content-between mb-1">
-                        <span className="text-muted">Cambio Entregado:</span>
-                        <strong className="text-success">${pedidoCompletado.cambio}</strong>
+                        <span className="fw-semibold text-secondary">Cambio Entregado:</span>
+                        <strong className="text-success fw-bold">${pedidoCompletado.cambio}</strong>
                       </div>
                     </>
                   )}
                 </div>
 
-                <h6 className="text-gold text-start fw-bold mb-2">Detalle de Productos:</h6>
+                <h6 className="text-start fw-bold mb-2" style={{ color: "var(--primary-orange)" }}>Detalle de Productos:</h6>
                 <div className="table-responsive mb-3">
-                  <table className="table table-dark table-sm small align-middle">
+                  <table className="table table-bordered table-sm small align-middle mb-0" style={{ backgroundColor: "#ffffff" }}>
                     <thead>
                       <tr>
-                        <th>Producto</th>
-                        <th className="text-center">Cant</th>
-                        <th className="text-end">Total</th>
+                        <th style={{ color: "#f5eae0", backgroundColor: "#2a221f" }}>Producto</th>
+                        <th className="text-center" style={{ color: "#f5eae0", backgroundColor: "#2a221f" }}>Cant</th>
+                        <th className="text-end" style={{ color: "#f5eae0", backgroundColor: "#2a221f" }}>Total</th>
                       </tr>
                     </thead>
                     <tbody>
                       {pedidoCompletado.items.map((it) => (
                         <tr key={it.producto_id}>
-                          <td>{it.nombre}</td>
-                          <td className="text-center">{it.cantidad}</td>
-                          <td className="text-end">${(it.precio * it.cantidad).toFixed(2)}</td>
+                          <td className="fw-medium text-dark">{it.nombre}</td>
+                          <td className="text-center fw-bold text-dark">{it.cantidad}</td>
+                          <td className="text-end fw-bold" style={{ color: "var(--primary-orange)" }}>${(it.precio * it.cantidad).toFixed(2)}</td>
                         </tr>
                       ))}
                     </tbody>

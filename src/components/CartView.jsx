@@ -121,9 +121,10 @@ export default function CartView({ usuario, setView, onSetCurrentOrderId, addAle
     }
   }, [usuario]);
 
-  // Cálculo de impuesto y envío ($0.00 si es retiro en local)
+  // Precios de platos incluyen IVA (15% desglosado)
   const IVA_RATE = 0.15;
-  const impuesto = Math.round(subtotal * IVA_RATE * 100) / 100;
+  const subtotalNeto = Math.round((subtotal / (1 + IVA_RATE)) * 100) / 100;
+  const impuesto = Math.round((subtotal - subtotalNeto) * 100) / 100;
 
   const costoBase = config ? Number(config.costo_base_envio || 0) : 0;
   const precioKm = config ? Number(config.precio_por_km || 0) : 0;
@@ -135,7 +136,7 @@ export default function CartView({ usuario, setView, onSetCurrentOrderId, addAle
         ? Math.round((costoBase + (distanciaKm * precioKm)) * 100) / 100
         : costoBase);
 
-  const total = Math.round((subtotal + impuesto + costoEnvio) * 100) / 100;
+  const total = Math.round((subtotal + costoEnvio) * 100) / 100;
 
   const handleConfirmarPedido = async (e) => {
     e.preventDefault();
@@ -582,11 +583,15 @@ export default function CartView({ usuario, setView, onSetCurrentOrderId, addAle
               {/* Desglose de Totales */}
               <div className="border-top border-glass pt-3 mb-4">
                 <div className="d-flex justify-content-between text-muted mb-2">
-                  <span>Subtotal (Platos)</span>
+                  <span>Monto Platos (IVA incl.)</span>
                   <span>${subtotal.toFixed(2)}</span>
                 </div>
-                <div className="d-flex justify-content-between text-muted mb-2">
-                  <span>IVA (15%)</span>
+                <div className="d-flex justify-content-between text-muted extra-small mb-2">
+                  <span>Subtotal Neto (sin IVA)</span>
+                  <span>${subtotalNeto.toFixed(2)}</span>
+                </div>
+                <div className="d-flex justify-content-between text-muted extra-small mb-2">
+                  <span>IVA 15% (incl. desglosado)</span>
                   <span>${impuesto.toFixed(2)}</span>
                 </div>
                 <div className="d-flex justify-content-between text-muted mb-2 fw-medium">

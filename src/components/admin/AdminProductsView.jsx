@@ -40,6 +40,8 @@ export default function AdminProductsView({ addAlert }) {
     orden: 1,
     activa: true,
   });
+  const [catPage, setCatPage] = useState(1);
+  const catLimit = 5;
   const [submittingCat, setSubmittingCat] = useState(false);
 
   const DEFAULT_CATEGORIAS = [
@@ -791,49 +793,63 @@ export default function AdminProductsView({ addAlert }) {
                             </td>
                           </tr>
                         ) : (
-                          categoriasList.map((cat) => (
-                            <tr key={cat.id}>
-                              <td>
-                                <div className="fw-bold text-dark">{cat.nombre}</div>
-                                {cat.descripcion && <div className="text-muted extra-small">{cat.descripcion}</div>}
-                              </td>
-                              <td className="fw-bold text-gold">{cat.orden}</td>
-                              <td>
-                                <span className="badge bg-light text-dark border border-glass">
-                                  {cat.total_productos || 0} prods
-                                </span>
-                              </td>
-                              <td>
-                                {cat.activa ? (
-                                  <span className="badge bg-success text-white">Activa</span>
-                                ) : (
-                                  <span className="badge bg-secondary text-white">Inactiva</span>
-                                )}
-                              </td>
-                              <td className="text-end">
-                                <div className="d-flex justify-content-end gap-1">
-                                  <button
-                                    className="btn btn-sm btn-outline-gold p-1"
-                                    onClick={() => handleEditCategory(cat)}
-                                    title="Editar categoría"
-                                  >
-                                    <Edit size={14} />
-                                  </button>
-                                  <button
-                                    className="btn btn-sm btn-outline-danger p-1"
-                                    onClick={() => handleDeleteCategory(cat.id, cat.nombre)}
-                                    title="Eliminar categoría"
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          ))
+                          categoriasList
+                            .slice((catPage - 1) * catLimit, catPage * catLimit)
+                            .map((cat) => (
+                              <tr key={cat.id}>
+                                <td>
+                                  <div className="fw-bold text-dark">{cat.nombre}</div>
+                                  {cat.descripcion && <div className="text-muted extra-small">{cat.descripcion}</div>}
+                                </td>
+                                <td className="fw-bold text-gold">{cat.orden}</td>
+                                <td>
+                                  <span className="badge bg-light text-dark border border-glass">
+                                    {cat.total_productos || 0} prods
+                                  </span>
+                                </td>
+                                <td>
+                                  {cat.activa ? (
+                                    <span className="badge bg-success text-white">Activa</span>
+                                  ) : (
+                                    <span className="badge bg-secondary text-white">Inactiva</span>
+                                  )}
+                                </td>
+                                <td className="text-end">
+                                  <div className="d-flex justify-content-end gap-1">
+                                    <button
+                                      className="btn btn-sm btn-outline-gold p-1"
+                                      onClick={() => handleEditCategory(cat)}
+                                      title="Editar categoría"
+                                    >
+                                      <Edit size={14} />
+                                    </button>
+                                    <button
+                                      className="btn btn-sm btn-outline-danger p-1"
+                                      onClick={() => handleDeleteCategory(cat.id, cat.nombre)}
+                                      title="Eliminar categoría"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))
                         )}
                       </tbody>
                     </table>
                   </div>
+
+                  {categoriasList.length > catLimit && (
+                    <div className="mt-2">
+                      <Pagination
+                        page={catPage}
+                        totalPages={Math.ceil(categoriasList.length / catLimit) || 1}
+                        total={categoriasList.length}
+                        limit={catLimit}
+                        onPageChange={(p) => setCatPage(p)}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="modal-footer border-top border-glass p-3">

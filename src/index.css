@@ -48,10 +48,15 @@ h1, h2, h3, .font-serif {
 /* Contenedor Principal */
 .main-content {
   flex: 1;
-  padding-top: 95px;
+  padding-top: 85px;
   padding-bottom: 3rem;
   padding-left: 1rem;
   padding-right: 1rem;
+  width: 100%;
+}
+
+.main-content.has-admin-bar {
+  padding-top: 135px;
 }
 
 /* Tarjetas y Formularios Calidos Neutros */
@@ -155,14 +160,48 @@ h1, h2, h3, .font-serif {
 .nav-link-custom {
   color: #f5ebe0 !important;
   font-weight: 500;
-  padding: 0.5rem 1rem !important;
+  padding: 0.45rem 0.75rem !important;
   border-radius: 6px;
   transition: all 0.2s ease;
+  white-space: nowrap !important;
+  font-size: 0.9rem;
 }
 
 .nav-link-custom:hover, .nav-link-custom.active {
   color: var(--mustard) !important;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Sub-barra de administración exclusiva */
+.admin-subnav-bar {
+  background-color: #1c1614;
+  border-bottom: 2px solid var(--primary-orange);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.admin-subnav-pill {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(216, 93, 48, 0.3);
+  color: #f5ebe0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 0.4rem 0.95rem;
+  border-radius: 20px;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.admin-subnav-pill:hover,
+.admin-subnav-pill.active {
+  background-color: var(--primary-orange);
+  border-color: var(--primary-orange);
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(216, 93, 48, 0.3);
 }
 
 /* Badge en Mostaza */
@@ -342,4 +381,141 @@ h1, h2, h3, .font-serif {
   font-weight: 600;
   padding: 0.4em 0.8em;
   border-radius: 20px;
+}
+
+/* ==========================================================================
+   Disposición Responsiva Adaptable (Móvil, Tablet, Pantallas Angostas)
+   ========================================================================== */
+
+/* Prevenir desbordamientos horizontales indeseados */
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
+/* Envoltura universal para tablas en móviles */
+.table-custom-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Ajustes para pantallas medianas / Tablets (< 992px) */
+@media (max-width: 991.98px) {
+  .main-content {
+    padding-top: 85px;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .navbar-collapse {
+    background-color: var(--espresso);
+    padding: 1rem;
+    border-radius: 12px;
+    margin-top: 0.5rem;
+    border: 1px solid var(--border-glass);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+  }
+
+  .hero-title {
+    font-size: 2.25rem;
+  }
+
+  .hero-subtitle {
+    font-size: 1.05rem;
+  }
+
+  /* POS responsivo */
+  .pos-container {
+    flex-direction: column !important;
+  }
+
+  .pos-cart-panel {
+    position: static !important;
+    width: 100% !important;
+  }
+}
+
+/* Ajustes para celulares y dispositivos móviles (< 768px) */
+@media (max-width: 767.98px) {
+  .main-content {
+    padding-top: 75px;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+  }
+
+  .hero-title {
+    font-size: 1.85rem;
+  }
+
+  .hero-subtitle {
+    font-size: 0.95rem;
+  }
+
+  .hero-section {
+    padding: 2rem 0 1rem;
+  }
+
+  /* Tarjetas glass adaptables en móviles */
+  .glass-card {
+    border-radius: 12px;
+    padding: 1rem !important;
+  }
+
+  /* Botones responsivos táctiles */
+  .btn-gold, .btn-outline-gold {
+    padding: 0.65rem 1.15rem !important;
+    font-size: 0.95rem;
+  }
+
+  /* Contenedor de Alertas en móviles */
+  .custom-alert-container {
+    top: 75px;
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: 92%;
+    max-width: 420px;
+  }
+
+  .custom-alert {
+    padding: 0.75rem 0.9rem;
+    font-size: 0.9rem;
+  }
+
+  /* Tablas en móvil: fuente más pequeña y celdas compactas */
+  .table-custom thead th {
+    padding: 0.75rem 0.85rem;
+    font-size: 0.78rem;
+    white-space: nowrap;
+  }
+
+  .table-custom tbody td {
+    padding: 0.75rem 0.85rem;
+    font-size: 0.85rem;
+  }
+
+  /* Modales responsivos en celulares */
+  .modal-dialog {
+    margin: 0.5rem;
+  }
+
+  .modal-content {
+    border-radius: 14px !important;
+  }
+}
+
+/* Ajustes para pantallas ultra pequeñas (< 576px) */
+@media (max-width: 575.98px) {
+  .navbar-brand-custom {
+    font-size: 1.2rem;
+  }
+
+  .navbar-brand-custom img {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  .table-custom-container {
+    border-radius: 12px;
+  }
 }
