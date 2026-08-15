@@ -158,13 +158,23 @@ export default function CartView({ usuario, setView, onSetCurrentOrderId, addAle
       return;
     }
 
-    if (tipoEntrega === "delivery" && !direccion.trim()) {
-      if (addAlert) addAlert("Por favor ingresa una dirección de entrega válida.", "danger");
-      return;
+    if (tipoEntrega === "delivery") {
+      if (!direccion || !direccion.trim()) {
+        if (addAlert) addAlert("⚠️ La dirección de entrega es obligatoria para envíos a domicilio.", "danger");
+        return;
+      }
+      if (direccion.trim().length < 4) {
+        if (addAlert) addAlert("⚠️ Por favor ingresa una dirección más detallada (calle, número o referencia).", "warning");
+        return;
+      }
+      if (distanciaKm > maxKm) {
+        if (addAlert) addAlert(`La distancia de envío (${distanciaKm} km) supera la cobertura máxima del local (${maxKm} km).`, "danger");
+        return;
+      }
     }
 
-    if (tipoEntrega === "delivery" && distanciaKm > maxKm) {
-      if (addAlert) addAlert(`La distancia de envío (${distanciaKm} km) supera la cobertura máxima del local (${maxKm} km).`, "danger");
+    if (!telefono || !telefono.trim()) {
+      if (addAlert) addAlert("Por favor ingresa un número de teléfono de contacto.", "warning");
       return;
     }
 
@@ -401,7 +411,7 @@ export default function CartView({ usuario, setView, onSetCurrentOrderId, addAle
                     <div className="input-group shadow-sm mb-2">
                       <input
                         type="text"
-                        className="form-control glass-input"
+                        className={`form-control glass-input ${!direccion.trim() ? "border-danger" : ""}`}
                         placeholder="Calle principal, número y referencia"
                         value={direccion}
                         onChange={(e) => setDireccion(e.target.value)}
@@ -417,6 +427,11 @@ export default function CartView({ usuario, setView, onSetCurrentOrderId, addAle
                         <span className="d-none d-sm-inline">Mapa</span>
                       </button>
                     </div>
+                    {!direccion.trim() && (
+                      <div className="text-danger extra-small fw-bold mb-2">
+                        ⚠️ Campo obligatorio para envío a domicilio. Ingresa la calle y referencia o usa el botón Mapa/GPS.
+                      </div>
+                    )}
                   </div>
 
                   {/* Selector de Distancia en KM para Delivery */}
