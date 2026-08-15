@@ -94,18 +94,16 @@ export default function AdminPosView({ addAlert, setView }) {
     });
   };
 
-  // Modificar cantidad
+  // Modificar cantidad (mínimo 1, para eliminar se usa el tacho de basura)
   const handleUpdateCantidad = (productoId, delta) => {
     setCartItems((prev) => {
-      return prev
-        .map((item) => {
-          if (item.producto_id === productoId) {
-            const nuevaCant = item.cantidad + delta;
-            return nuevaCant > 0 ? { ...item, cantidad: nuevaCant } : null;
-          }
-          return item;
-        })
-        .filter(Boolean);
+      return prev.map((item) => {
+        if (item.producto_id === productoId) {
+          const nuevaCant = Math.max(1, item.cantidad + delta);
+          return { ...item, cantidad: nuevaCant };
+        }
+        return item;
+      });
     });
   };
 
@@ -365,8 +363,10 @@ export default function AdminPosView({ addAlert, setView }) {
 
                     <div className="d-flex align-items-center gap-1">
                       <button
-                        className="btn btn-sm btn-outline-secondary px-2 py-0"
+                        className={`btn btn-sm btn-outline-secondary px-2 py-0 ${item.cantidad <= 1 ? "disabled opacity-50" : ""}`}
                         onClick={() => handleUpdateCantidad(item.producto_id, -1)}
+                        disabled={item.cantidad <= 1}
+                        title={item.cantidad <= 1 ? "La cantidad mínima es 1. Para eliminar, usa el tacho de basura." : "Restar unidad"}
                       >
                         <Minus size={12} />
                       </button>

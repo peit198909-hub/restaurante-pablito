@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   X,
   Store,
+  Upload,
 } from "lucide-react";
 
 // Fórmula de Haversine para distancia en kilómetros

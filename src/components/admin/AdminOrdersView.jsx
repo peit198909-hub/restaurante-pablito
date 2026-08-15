@@ -38,8 +38,11 @@ export default function AdminOrdersView({ addAlert }) {
     { value: "cancelado", label: "Cancelado" },
   ];
 
+  const [repartidoresList, setRepartidoresList] = useState([]);
+
   useEffect(() => {
     cargarPedidos(page, limit);
+    cargarRepartidores();
 
     const handleRealtimeUpdate = (e) => {
       const { pedido_id, estado } = e.detail || {};
@@ -62,6 +65,17 @@ export default function AdminOrdersView({ addAlert }) {
     window.addEventListener("order_status_update", handleRealtimeUpdate);
     return () => window.removeEventListener("order_status_update", handleRealtimeUpdate);
   }, [page, limit, filtroEstado]);
+
+  const cargarRepartidores = async () => {
+    try {
+      const res = await apiFetch("/api/repartidores");
+      if (res && res.repartidores) {
+        setRepartidoresList(res.repartidores);
+      }
+    } catch (err) {
+      console.warn("No se pudo cargar la lista de repartidores:", err);
+    }
+  };
 
   const cargarPedidos = async (pg = page, lm = limit) => {
     setLoading(true);
@@ -98,9 +112,24 @@ export default function AdminOrdersView({ addAlert }) {
       if (addAlert) {
         addAlert(`Estado del pedido #${pedidoId} cambiado a '${nuevoEstado}'`, "success");
       }
-      // Cambiar automáticamente la pestaña/filtro activo al nuevo estado
       setFiltroEstado(nuevoEstado);
       setPage(1);
+    } catch (err) {
+      if (addAlert) addAlert(err.message, "danger");
+    }
+  };
+
+  const handleCambiarRepartidor = async (pedidoId, repartidorIdStr) => {
+    try {
+      const repartidor_id = repartidorIdStr ? parseInt(repartidorIdStr, 10) : null;
+      await apiFetch(`/api/pedidos/${pedidoId}/repartidor`, {
+        method: "PATCH",
+        body: { repartidor_id },
+      });
+      if (addAlert) {
+        addAlert(`Motorizado asignado con éxito al pedido #${pedidoId}`, "success");
+      }
+      cargarPedidos(page, limit);
     } catch (err) {
       if (addAlert) addAlert(err.message, "danger");
     }
@@ -204,14 +233,20 @@ export default function AdminOrdersView({ addAlert }) {
                         <span className="badge bg-warning text-dark fw-bold p-2 d-inline-flex align-items-center gap-1 shadow-sm">
                           🏪 Retiro en Local ($0.00 Envío)
                         </span>
-                      ) : ped.repartidor_nombre ? (
-                        <span className="badge bg-gold text-dark fw-bold p-2 d-inline-flex align-items-center gap-1 shadow-sm">
-                          🛵 {ped.repartidor_nombre} {ped.repartidor_apellido}
-                        </span>
                       ) : (
-                        <span className="badge bg-light text-muted border border-glass p-2 d-inline-flex align-items-center gap-1">
-                          ⏳ En cola (sin asignar)
-                        </span>
+                        <select
+                          className="form-select form-select-sm bg-white text-dark border-glass fw-bold shadow-sm"
+                          value={ped.repartidor_id || ""}
+                          onChange={(e) => handleCambiarRepartidor(ped.id, e.target.value)}
+                          style={{ minWidth: "150px", cursor: "pointer" }}
+                        >
+                          <option value="">⏳ Sin Asignar (En Cola)</option>
+                          {repartidoresList.map((rep) => (
+                            <option key={rep.id} value={rep.id}>
+                              🛵 {rep.nombre} {rep.apellido}
+                            </option>
+                          ))}
+                        </select>
                       )}
                     </td>
                     <td className="small text-muted">{formatFecha(ped.creado_en)}</td>
