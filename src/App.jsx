@@ -16,7 +16,7 @@ import AdminDashboardView from "./components/admin/AdminDashboardView";
 import AdminConfigView from "./components/admin/AdminConfigView";
 import AdminPosView from "./components/admin/AdminPosView";
 import DeliveryView from "./components/DeliveryView";
-import { useOrderAbly } from "./hooks/useOrderAbly";
+import { useOrderWebSocket } from "./hooks/useOrderWebSocket";
 import { playNotificationSound } from "./utils/soundUtils";
 import { apiFetch } from "./api/client";
 import { UtensilsCrossed, ShieldAlert, User, ShieldCheck, ShoppingBag, Package, TrendingUp, Truck } from "lucide-react";
@@ -382,8 +382,8 @@ function AppContent() {
     }
   }, [usuario, addAlert, buildNotificationDetails]);
 
-  // Activar conexión en tiempo real exclusiva de Ably Realtime
-  useOrderAbly(token, handleOrderAblyUpdate);
+  // Activar conexión en tiempo real vía WebSocket
+  useOrderWebSocket(token, handleOrderAblyUpdate);
 
   const handleMarkAllAsRead = () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, leido: true })));
