@@ -71,7 +71,13 @@ export default function MyOrdersView({ setView, onSetCurrentOrderId }) {
     }
   };
 
-  const getStatusBadge = (estado) => {
+  const getStatusBadge = (pedidoObj) => {
+    const estado = typeof pedidoObj === "string" ? pedidoObj : pedidoObj?.estado;
+    const esRetiro = typeof pedidoObj === "object" && (
+      pedidoObj?.tipo_entrega === "retiro" ||
+      (pedidoObj?.direccion_entrega && pedidoObj.direccion_entrega.toLowerCase().includes("retiro"))
+    );
+
     switch (estado) {
       case "pendiente":
         return <span className="badge bg-warning text-dark">Pendiente</span>;
@@ -80,11 +86,15 @@ export default function MyOrdersView({ setView, onSetCurrentOrderId }) {
       case "en_preparacion":
         return <span className="badge bg-primary text-light">En Preparación</span>;
       case "listo":
-        return <span className="badge bg-secondary text-light">Listo para Entrega</span>;
+        return (
+          <span className="badge bg-secondary text-light">
+            {esRetiro ? "🏪 Listo para Retirar" : "Listo para Entrega"}
+          </span>
+        );
       case "en_camino":
         return <span className="badge bg-purple text-light" style={{ backgroundColor: "#8a2be2" }}>En Camino</span>;
       case "entregado":
-        return <span className="badge bg-success">Entregado</span>;
+        return <span className="badge bg-success">{esRetiro ? "✅ Retirado en Local" : "Entregado"}</span>;
       case "cancelado":
         return <span className="badge bg-danger">Cancelado</span>;
       default:
@@ -132,7 +142,7 @@ export default function MyOrdersView({ setView, onSetCurrentOrderId }) {
                 <div>
                   <div className="d-flex align-items-center justify-content-between mb-3 border-bottom border-glass pb-2">
                     <span className="fw-bold text-gold fs-5">Pedido #{pedido.id}</span>
-                    {getStatusBadge(pedido.estado)}
+                    {getStatusBadge(pedido)}
                   </div>
 
                   <div className="text-muted small mb-2 d-flex align-items-center gap-1">

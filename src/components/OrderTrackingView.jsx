@@ -11,13 +11,21 @@ export default function OrderTrackingView({ orderId, setView }) {
   const [uploadingReceipt, setUploadingReceipt] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
 
-  const ESTADOS_ORDEN = [
+  const ESTADOS_ORDEN_DELIVERY = [
     { key: "pendiente", label: "Pendiente", icon: Clock },
     { key: "confirmado", label: "Confirmado", icon: CheckCircle2 },
     { key: "en_preparacion", label: "En Preparación", icon: Utensils },
     { key: "listo", label: "Listo", icon: PackageCheck },
     { key: "en_camino", label: "En Camino", icon: Truck },
     { key: "entregado", label: "Entregado", icon: Home },
+  ];
+
+  const ESTADOS_ORDEN_RETIRO = [
+    { key: "pendiente", label: "Pendiente", icon: Clock },
+    { key: "confirmado", label: "Confirmado", icon: CheckCircle2 },
+    { key: "en_preparacion", label: "En Preparación", icon: Utensils },
+    { key: "listo", label: "Listo para Retirar", icon: PackageCheck },
+    { key: "entregado", label: "Retirado", icon: Store },
   ];
 
   useEffect(() => {
@@ -128,8 +136,10 @@ export default function OrderTrackingView({ orderId, setView }) {
   const esRetiro = data?.pedido?.tipo_entrega === "retiro" ||
     (data?.pedido?.direccion_entrega && data.pedido.direccion_entrega.toLowerCase().includes("retiro"));
 
+  const estadosOrden = esRetiro ? ESTADOS_ORDEN_RETIRO : ESTADOS_ORDEN_DELIVERY;
+
   const getIndiceEstado = (estado) => {
-    return ESTADOS_ORDEN.findIndex((e) => e.key === estado);
+    return estadosOrden.findIndex((e) => e.key === estado);
   };
 
   const indiceActual = getIndiceEstado(estadoActual);
@@ -173,14 +183,14 @@ export default function OrderTrackingView({ orderId, setView }) {
                   </p>
                 </div>
               ) : (
-                <div className="row text-center position-relative g-3 py-3">
-                  {ESTADOS_ORDEN.map((st, idx) => {
+                <div className="row text-center position-relative g-3 py-3 justify-content-center">
+                  {estadosOrden.map((st, idx) => {
                     const IconComponent = st.icon;
                     const esCompletado = idx <= indiceActual;
                     const esActivo = idx === indiceActual;
 
                     return (
-                      <div key={st.key} className="col-4 col-md-2">
+                      <div key={st.key} className={esRetiro ? "col-6 col-sm-4 col-md" : "col-4 col-md-2"}>
                         <div
                           className={`d-inline-flex p-3 rounded-circle mb-2 transition-all shadow-sm ${
                             esActivo

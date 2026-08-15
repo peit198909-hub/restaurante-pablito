@@ -260,18 +260,28 @@ export default function AdminOrdersView({ addAlert }) {
                     </td>
                     <td className="fw-bold text-gold fs-6">${Number(ped.total).toFixed(2)}</td>
                     <td>
-                      <select
-                        className="form-select form-select-sm bg-white text-dark border-glass fw-bold shadow-sm"
-                        value={ped.estado}
-                        onChange={(e) => handleCambiarEstado(ped.id, e.target.value)}
-                        style={{ cursor: "pointer" }}
-                      >
-                        {ESTADOS_DISPONIBLES.map((st) => (
-                          <option key={st.value} value={st.value}>
-                            {st.label}
-                          </option>
-                        ))}
-                      </select>
+                      {(() => {
+                        const esRetiroPed = ped.tipo_entrega === "retiro" || (ped.direccion_entrega && ped.direccion_entrega.toLowerCase().includes("retiro"));
+                        const opcionesEstado = ESTADOS_DISPONIBLES.filter(st => !esRetiroPed || st.value !== "en_camino");
+                        return (
+                          <select
+                            className="form-select form-select-sm bg-white text-dark border-glass fw-bold shadow-sm"
+                            value={ped.estado}
+                            onChange={(e) => handleCambiarEstado(ped.id, e.target.value)}
+                            style={{ cursor: "pointer" }}
+                          >
+                            {opcionesEstado.map((st) => (
+                              <option key={st.value} value={st.value}>
+                                {esRetiroPed && st.value === "listo"
+                                  ? "Listo para Retirar"
+                                  : esRetiroPed && st.value === "entregado"
+                                  ? "Retirado / Entregado"
+                                  : st.label}
+                              </option>
+                            ))}
+                          </select>
+                        );
+                      })()}
                     </td>
                     <td className="text-end">
                       <div className="d-flex justify-content-end gap-1">

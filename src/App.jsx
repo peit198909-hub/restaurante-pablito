@@ -165,6 +165,9 @@ function AppContent() {
       }
     } else {
       // Cliente
+      const esRetiro = eventData?.pedido?.tipo_entrega === "retiro" ||
+        (eventData?.pedido?.direccion_entrega && eventData.pedido.direccion_entrega.toLowerCase().includes("retiro"));
+
       if (tipo === "creado" || estado === "pendiente") {
         titulo = `🛒 ¡Tu pedido #${id} fue recibido!`;
         mensaje = `Tu pedido #${id} fue enviado al restaurante. ¡Está pendiente de aprobación y cocina!`;
@@ -178,16 +181,20 @@ function AppContent() {
         mensaje = `Nuestros chefs están preparando tu pedido #${id} con los mejores ingredientes.`;
         badgeColor = "bg-warning text-dark";
       } else if (estado === "listo") {
-        titulo = `📦 ¡Tu pedido #${id} está listo!`;
-        mensaje = `Tu pedido #${id} ya fue preparado y empaquetado.`;
+        titulo = esRetiro ? `📦 ¡Tu pedido #${id} está listo para retirar!` : `📦 ¡Tu pedido #${id} está listo!`;
+        mensaje = esRetiro
+          ? `Tu pedido #${id} ya fue preparado. Puedes pasar a retirarlo por el restaurante.`
+          : `Tu pedido #${id} ya fue preparado y empaquetado.`;
         badgeColor = "bg-info text-dark";
       } else if (estado === "en_camino") {
         titulo = `🛵 ¡Tu pedido #${id} va en camino!`;
         mensaje = `El motorizado salió con tu pedido #${id} rumbo a tu domicilio. ¡Prepárate para recibirlo!`;
         badgeColor = "bg-gold text-dark";
       } else if (estado === "entregado") {
-        titulo = `🎉 ¡Pedido #${id} Entregado!`;
-        mensaje = `Tu pedido #${id} ha sido entregado. ¡Que disfrutes tu comida en Restaurante Pablito!`;
+        titulo = esRetiro ? `🎉 ¡Pedido #${id} Retirado!` : `🎉 ¡Pedido #${id} Entregado!`;
+        mensaje = esRetiro
+          ? `Has retirado exitosamente tu pedido #${id} en el restaurante. ¡Buen provecho!`
+          : `Tu pedido #${id} ha sido entregado. ¡Que disfrutes tu comida en Restaurante Pablito!`;
         badgeColor = "bg-success text-white";
       } else if (estado === "cancelado") {
         titulo = `❌ Tu pedido #${id} fue cancelado`;
