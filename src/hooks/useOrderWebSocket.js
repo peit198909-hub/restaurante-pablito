@@ -12,7 +12,7 @@ export function getWebSocketUrl() {
 
   const baseUrl = API_URL || "http://localhost:3000";
   const wsProtocol = baseUrl.startsWith("https") ? "wss" : "ws";
-  const host = baseUrl.replace(/^https?:\/\//, "");
+  const host = baseUrl.replace(/^https?:\/\//, "").replace(/\/$/, "");
 
   return `${wsProtocol}://${host}/ws`;
 }
