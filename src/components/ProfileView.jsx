@@ -54,6 +54,11 @@ export default function ProfileView({ token, addAlert, onUpdateUsuario }) {
       return;
     }
 
+    if (telefono && telefono.length !== 10) {
+      addAlert("El número de teléfono debe tener exactamente 10 dígitos", "danger");
+      return;
+    }
+
     if (cambiandoContrasena) {
       if (!contrasenaActual || !contrasenaNueva) {
         addAlert("Para cambiar la contrasena debe completar ambos campos", "danger");
@@ -191,7 +196,8 @@ export default function ProfileView({ token, addAlert, onUpdateUsuario }) {
                       className="form-control glass-input border-start-0"
                       placeholder="ej: 0991234567"
                       value={telefono}
-                      onChange={(e) => setTelefono(e.target.value)}
+                      maxLength={10}
+                      onChange={(e) => setTelefono(e.target.value.replace(/\D/g, "").slice(0, 10))}
                     />
                   </div>
                 </div>

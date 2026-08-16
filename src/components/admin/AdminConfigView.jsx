@@ -103,6 +103,12 @@ export default function AdminConfigView({ addAlert }) {
 
   const handleGuardarConfig = async (e) => {
     e.preventDefault();
+    
+    if (telefonoContacto && telefonoContacto.length !== 10) {
+      if (addAlert) addAlert("El número de teléfono de contacto debe tener exactamente 10 dígitos", "danger");
+      return;
+    }
+
     setSaving(true);
     try {
       const body = {
@@ -254,10 +260,12 @@ export default function AdminConfigView({ addAlert }) {
                   <div className="col-12 col-md-6">
                     <label className="form-label text-gold small fw-bold mb-1">Teléfono Contacto</label>
                     <input
-                      type="text"
+                      type="tel"
                       className="form-control glass-input"
+                      placeholder="ej: 0991234567"
                       value={telefonoContacto}
-                      onChange={(e) => setTelefonoContacto(e.target.value)}
+                      maxLength={10}
+                      onChange={(e) => setTelefonoContacto(e.target.value.replace(/\D/g, "").slice(0, 10))}
                     />
                   </div>
                   <div className="col-12">

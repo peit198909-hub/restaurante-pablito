@@ -178,6 +178,11 @@ export default function CartView({ usuario, setView, onSetCurrentOrderId, addAle
       return;
     }
 
+    if (telefono.trim().length !== 10) {
+      if (addAlert) addAlert("El número de teléfono debe tener exactamente 10 dígitos.", "warning");
+      return;
+    }
+
     setSubmitting(true);
     try {
       const itemsPayload = cart.map((item) => ({
@@ -487,11 +492,12 @@ export default function CartView({ usuario, setView, onSetCurrentOrderId, addAle
                   <Phone size={16} /> Teléfono de Contacto
                 </label>
                 <input
-                  type="text"
+                  type="tel"
                   className="form-control glass-input"
                   placeholder="Ej. 0991234567"
                   value={telefono}
-                  onChange={(e) => setTelefono(e.target.value)}
+                  maxLength={10}
+                  onChange={(e) => setTelefono(e.target.value.replace(/\D/g, "").slice(0, 10))}
                 />
               </div>
 

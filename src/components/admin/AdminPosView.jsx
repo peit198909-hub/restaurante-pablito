@@ -136,6 +136,11 @@ export default function AdminPosView({ addAlert, setView }) {
       return;
     }
 
+    if (telefonoContacto && telefonoContacto.length !== 10) {
+      if (addAlert) addAlert("El número de teléfono de contacto debe tener exactamente 10 dígitos", "warning");
+      return;
+    }
+
     setProcesando(true);
     try {
       const itemsPayload = cartItems.map((i) => ({
@@ -431,6 +436,17 @@ export default function AdminPosView({ addAlert, setView }) {
                   ))}
                 </select>
               )}
+
+              <div className="mt-2">
+                <input
+                  type="tel"
+                  className="form-control form-control-sm glass-input"
+                  placeholder="Teléfono contacto opcional (10 dígitos)"
+                  value={telefonoContacto}
+                  maxLength={10}
+                  onChange={(e) => setTelefonoContacto(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                />
+              </div>
             </div>
 
             {/* Tipo de Entrega */}
