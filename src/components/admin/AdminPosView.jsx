@@ -426,7 +426,23 @@ export default function AdminPosView({ addAlert, setView }) {
                 <select
                   className="form-select form-select-sm glass-input"
                   value={clienteSeleccionadoId}
-                  onChange={(e) => setClienteSeleccionadoId(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setClienteSeleccionadoId(val);
+                    const selected = clientes.find((c) => String(c.id) === String(val));
+                    if (selected) {
+                      if (selected.telefono) {
+                        setTelefonoContacto(String(selected.telefono).replace(/\D/g, "").slice(0, 10));
+                      } else {
+                        setTelefonoContacto("");
+                      }
+                      if (selected.direccion && selected.direccion.trim() && selected.direccion !== "No especificada") {
+                        setDireccionEntrega(selected.direccion);
+                      }
+                    } else {
+                      setTelefonoContacto("");
+                    }
+                  }}
                 >
                   <option value="">-- Seleccionar Cliente Registrado --</option>
                   {clientes.map((c) => (

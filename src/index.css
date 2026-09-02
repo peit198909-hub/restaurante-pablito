@@ -45,6 +45,33 @@ h1, h2, h3, .font-serif {
   color: var(--primary-orange) !important;
 }
 
+.bg-gold {
+  background-color: var(--primary-orange) !important;
+}
+
+.border-gold {
+  border-color: var(--primary-orange) !important;
+}
+
+.shadow-gold {
+  box-shadow: 0 4px 15px rgba(216, 93, 48, 0.4) !important;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
 /* Contenedor Principal */
 .main-content {
   flex: 1;
